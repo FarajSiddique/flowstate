@@ -1,3 +1,9 @@
-// Future intent-to-UI decision logic belongs here; no AI integration yet.
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Architectural placeholder.
-export interface DecisionEngine {}
+import type { IntentDecision, IntentRequest } from '@flowstate/types';
+
+import { MockDecisionEngine } from './mock-decision-engine';
+
+export interface DecisionEngine {
+  classifyIntent(input: IntentRequest): Promise<IntentDecision>;
+}
+
+export const decisionEngine: DecisionEngine = new MockDecisionEngine();

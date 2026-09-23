@@ -1,8 +1,8 @@
 # flowstate
 
-A small, typed foundation for an AI-native productivity app. This starter proves
-**Expo → Next.js API → shared contract**. It has no AI integration, auth, or database
-functionality.
+A small, typed foundation for an AI-native productivity app. The first product
+slice proves **natural-language input → typed intent → deterministic mobile UI**.
+It uses a local mock decision engine, with no provider, auth, or database functionality.
 
 ## Requirements
 
@@ -41,15 +41,36 @@ Expo process before starting another on port 8081.
 
 The mobile app requests `/api/health`, validates its response with shared Zod,
 and displays **API status: Connected**. It rechecks every 15 seconds and offers a
-manual check. A tiny Zustand store counts manual checks in memory; API data lives
-only in TanStack Query. Health requests time out after five seconds and retry once.
+manual check. A small example Zustand store remains available for future local UI
+state; health data lives in TanStack Query. Health requests time out after five seconds.
+
+Type a phrase into the Magic Bar. After a short pause, `POST /api/intent` classifies
+it, and Expo renders a preview using the shared Zod contract. **Continue** opens a
+prefilled form; its final button closes the form without saving anything. Try:
+
+| Phrase                                        | Preview        |
+| --------------------------------------------- | -------------- |
+| `meet Sarah tomorrow at 2`                    | Schedule Event |
+| `remind me to submit my application tomorrow` | Create Task    |
+| `write down idea about AI sports coach`       | Create Note    |
+| `find my architecture notes`                  | Search         |
+| `asdf banana purple`                          | No suggestion  |
+
+The mock parser treats an unqualified `at 2` as **2:00 PM**. It only supports a
+small set of phrases and relative dates (`today` and `tomorrow`); those strings
+remain display values rather than calendar dates.
 
 ```bash
 curl http://localhost:3000/api/health
 # {"status":"ok"}
 
+curl -X POST http://localhost:3000/api/intent \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"meet Sarah tomorrow at 2"}'
+
 pnpm lint
 pnpm typecheck
+pnpm test
 pnpm format:check
 pnpm format          # apply formatting
 pnpm build           # Next.js production build + Expo web export
@@ -93,9 +114,9 @@ the `.env.example` files are tracked. Turbo passes public app configuration thro
 to dev tasks; add any future secret names to its task environment configuration
 when those secrets are actually used.
 
-The credential-free health endpoint allows cross-origin GET requests for Expo web.
-That header is scoped to health; choose explicit origins and auth rules when real
-API routes are added.
+The credential-free health and intent endpoints allow cross-origin requests for
+Expo web. The intent endpoint handles JSON preflight requests. Choose explicit
+origins and auth rules when the API handles private user data.
 
 ## Structure and extension points
 
@@ -103,20 +124,23 @@ API routes are added.
 apps/
   mobile/
     src/app/                  # Expo Router Home and root layout
-    src/lib/                  # Query provider and validated API request
+    src/components/           # Intent previews and confirmation form
+    src/lib/                  # Validated API client, prediction hook, thresholds
     src/stores/               # Trivial Zustand example
   api/
     src/app/api/health/        # GET /api/health
-    src/lib/decision-engine/  # Future AI decision logic
+    src/app/api/intent/        # POST /api/intent
+    src/lib/decision-engine/  # Engine interface and deterministic mock
     src/lib/supabase/         # Future server client/data access
 packages/
   types/src/                  # Shared Zod schemas and inferred contracts
   config/                     # Strict TS, shared ESLint, Prettier
+tests/                         # Node tests for contracts, classifier, thresholds
 ```
 
-- Put future intent-to-UI decisions in `apps/api/src/lib/decision-engine/`. It
-  currently exports only an empty `DecisionEngine` interface. Provider calls and
-  provider secrets should stay server-side.
+- Add a future provider implementation in `apps/api/src/lib/decision-engine/` and
+  switch the exported `decisionEngine` instance there. The route and mobile client
+  depend only on the shared contract; provider secrets stay server-side.
 - Put future Supabase client factories and data access in
   `apps/api/src/lib/supabase/`. `@supabase/supabase-js` is installed in the API, but
   no client is constructed and no credentials are required today.

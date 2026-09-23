@@ -13,6 +13,7 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
