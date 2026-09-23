@@ -1,6 +1,9 @@
 import { intentRequestSchema, intentResponseSchema } from '@flowstate/types';
 
-import { decisionEngine } from '../../../lib/decision-engine';
+import {
+  DecisionEngineConfigurationError,
+  getDecisionEngine,
+} from '../../../lib/decision-engine/index.ts';
 
 const headers = {
   'Cache-Control': 'no-store',
@@ -15,7 +18,7 @@ export function OPTIONS() {
 
 export async function POST(request: Request) {
   let body: unknown;
-  
+
   try {
     body = await request.json();
   } catch {
@@ -27,10 +30,16 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Enter 3 to 500 characters of text.' }, { status: 400, headers });
   }
 
-  try {
-    const decision = await decisionEngine.classifyIntent(parsed.data);
+  try {    
+    const decision = await getDecisionEngine().classifyIntent(parsed.data);
     return Response.json(intentResponseSchema.parse(decision), { headers });
-  } catch {
+  } catch (error) {
+    console.error(
+      '[intent]',
+      error instanceof DecisionEngineConfigurationError
+        ? error.message
+        : 'Intent prediction failed unexpectedly.',
+    );
     return Response.json(
       { error: 'Intent prediction is temporarily unavailable.' },
       { status: 500, headers },

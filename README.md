@@ -2,7 +2,8 @@
 
 A small, typed foundation for an AI-native productivity app. The first product
 slice proves **natural-language input → typed intent → deterministic mobile UI**.
-It uses a local mock decision engine, with no provider, auth, or database functionality.
+Intent classification can use either a local mock or Jev through Vercel AI Gateway.
+There is no auth or database functionality.
 
 ## Requirements
 
@@ -80,6 +81,57 @@ pnpm build           # Next.js production build + Expo web export
 needed. All workspaces are private, and shared TypeScript source is consumed
 directly by Next.js and Expo, so no separate package build/watch process is needed.
 
+## Intent providers
+
+Configure only the API's ignored `apps/api/.env.local`:
+
+```dotenv
+AI_PROVIDER=jev
+AI_GATEWAY_API_KEY=<your Vercel AI Gateway key>
+FLOWSTATE_INTENT_MODEL=typesafe-ai/jev
+FLOWSTATE_INTENT_TIMEOUT_MS=3500
+```
+
+Restart `pnpm dev:api` after changing configuration. `AI_PROVIDER=mock` (also
+the default when unset) preserves the original offline classifier and requires no
+key. Any other provider value, missing Jev key/model, or invalid timeout produces
+an actionable server log and a generic HTTP 500; configuration mistakes do not
+silently switch providers. The timeout accepts integer milliseconds from 1 to
+4500, below the unchanged mobile five-second timeout. The model is always read
+from configuration; `typesafe-ai` alone is a provider name, not Jev's model ID.
+
+`getDecisionEngine()` selects the implementation behind the same interface.
+`JevDecisionEngine` uses native fetch against Vercel's documented
+[evaluation API](https://vercel.com/docs/ai-gateway/modalities/evaluation),
+`POST https://ai-gateway.vercel.sh/v1/evaluate`. No AI SDK was previously installed;
+this integration needs only Zod and the existing Node runtime.
+
+Jev selects among the five intents and assesses whether the input is ready for a
+useful preview in one request. It does not generate arbitrary entity strings.
+A small local parser copies/normalizes title, person, query, relative day/weekday,
+and 12-hour time expressions from the source. Unsupported expressions stay in
+editable text; this is not general-purpose entity extraction. Unqualified hours
+1–7 retain the starter's PM assumption. Dates remain display strings, without
+calendar or timezone resolution.
+
+The Gateway envelope is validated with Zod, then mapped into the unchanged shared
+`intentResponseSchema`. Confidence is the lower of classification confidence
+(or selected-option probability when Gateway omits confidence) and preview-readiness
+probability. This is a conservative display signal, not a calibrated probability
+that every extracted field is correct. Mobile thresholds and debounce are unchanged.
+
+Gateway HTTP errors, malformed JSON/output, network failures, and timeouts return
+HTTP 200 with `{ intent: 'UNKNOWN', confidence: 0, entities: {} }`. There are no
+retries or fallback models. Development logs contain provider, intent, confidence,
+latency, and safe error categories/HTTP status; they omit inputs, credentials, and
+raw provider responses. Vercel may retain its own Gateway logs independently.
+
+`pnpm test` uses Node's built-in runner and mocks the HTTP boundary; it never calls
+Jev. To smoke-test the real path, select `jev`, start the API, and use the curl
+command above with all five demo phrases, plus `meet` and `meet Sarah tomorrow`.
+Check API terminal timings and Gateway usage; a safe UNKNOWN fallback by itself
+is not evidence that a real model request succeeded.
+
 ## Device networking and environment
 
 `apps/mobile/.env` contains only public app configuration:
@@ -110,9 +162,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 `EXPO_PUBLIC_*` is bundled into the app, and `NEXT_PUBLIC_*` is public configuration.
 Never use either prefix for secrets. Future server credentials belong only in the
 API's environment, without a public prefix. Environment files are ignored by git;
-the `.env.example` files are tracked. Turbo passes public app configuration through
-to dev tasks; add any future secret names to its task environment configuration
-when those secrets are actually used.
+the `.env.example` files are tracked. Turbo passes Gateway configuration only to the API dev task. Do not add Gateway
+keys to Expo configuration or any public environment variable.
 
 The credential-free health and intent endpoints allow cross-origin requests for
 Expo web. The intent endpoint handles JSON preflight requests. Choose explicit
@@ -130,7 +181,7 @@ apps/
   api/
     src/app/api/health/        # GET /api/health
     src/app/api/intent/        # POST /api/intent
-    src/lib/decision-engine/  # Engine interface and deterministic mock
+    src/lib/decision-engine/  # Provider factory, mock, Jev, entity parser
     src/lib/supabase/         # Future server client/data access
 packages/
   types/src/                  # Shared Zod schemas and inferred contracts
@@ -138,8 +189,8 @@ packages/
 tests/                         # Node tests for contracts, classifier, thresholds
 ```
 
-- Add a future provider implementation in `apps/api/src/lib/decision-engine/` and
-  switch the exported `decisionEngine` instance there. The route and mobile client
+- Add future provider implementations in `apps/api/src/lib/decision-engine/` and
+  register them in `getDecisionEngine()` there. The route and mobile client
   depend only on the shared contract; provider secrets stay server-side.
 - Put future Supabase client factories and data access in
   `apps/api/src/lib/supabase/`. `@supabase/supabase-js` is installed in the API, but

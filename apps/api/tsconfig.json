@@ -1,6 +1,7 @@
 {
   "extends": "@flowstate/config/typescript/base.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "jsx": "react-jsx",
     "allowJs": true,
