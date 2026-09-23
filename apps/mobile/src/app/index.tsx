@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import type { IntentDecision } from '@flowstate/types';
 import { useState } from 'react';
-import { Keyboard, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IntentConfirmationModal } from '@/components/intent-confirmation-modal';
 import { IntentPreview } from '@/components/intent-previews';
+import { MagicBar } from '@/components/magic-bar';
 import { getHealth } from '@/lib/api';
+import { previewEmphasis } from '@/lib/intent-confidence';
+import { colors, fonts } from '@/lib/theme';
 import { useIntentPrediction } from '@/lib/use-intent-prediction';
 
 export default function HomeScreen() {
@@ -19,35 +22,41 @@ export default function HomeScreen() {
   });
 
   const status = health.isPending ? 'Checking…' : health.isError ? 'Unreachable' : 'Connected';
-  const statusColor = health.isPending ? '#68788C' : health.isError ? '#B33B35' : '#21764C';
+  const statusColor = health.isPending
+    ? colors.faint
+    : health.isError
+      ? colors.danger
+      : colors.success;
+  // Only mark up the input when there is a draft on screen to explain.
+  const shown = decision && previewEmphasis(decision) !== 'none' ? decision : null;
 
   return (
     <SafeAreaView style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.content}>
-          <Text accessibilityRole="header" style={styles.title}>
-            flowstate
-          </Text>
-          <Text style={styles.subtitle}>AI-native interfaces, built around intent.</Text>
-
-          <View style={styles.magicBar}>
-            <Text style={styles.inputLabel}>YOUR NEXT MOVE</Text>
-            <TextInput
-              accessibilityLabel="What do you want to do?"
-              value={text}
-              onChangeText={setText}
-              placeholder="What do you want to do?"
-              placeholderTextColor="#8997A8"
-              multiline
-              maxLength={500}
-              style={styles.input}
-              textAlignVertical="top"
-            />
+          <View style={styles.top}>
+            <Text accessibilityRole="header" style={styles.brand}>
+              flowstate
+            </Text>
+            <View style={styles.status}>
+              <View style={[styles.dot, { backgroundColor: statusColor }]} />
+              <Text
+                accessibilityLiveRegion="polite"
+                style={[styles.statusText, { color: statusColor }]}
+              >
+                {status}
+              </Text>
+            </View>
           </View>
+          <Text style={styles.subtitle}>
+            Type a plan. Flowstate marks the details it picked up.
+          </Text>
+
+          <MagicBar value={text} onChangeText={setText} highlights={shown?.highlights} />
 
           {isPredicting ? (
             <Text accessibilityLiveRegion="polite" style={styles.feedback}>
-              Finding the right next step…
+              Reading your plan…
             </Text>
           ) : null}
           {error ? (
@@ -64,21 +73,27 @@ export default function HomeScreen() {
             }}
           />
 
-          <View style={styles.statusRow}>
-            <View style={[styles.dot, { backgroundColor: statusColor }]} />
-            <Text accessibilityLiveRegion="polite" style={styles.status}>
-              API status: {status}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Check API again"
-              disabled={health.isFetching}
-              onPress={() => void health.refetch()}
-              style={({ pressed }) => [styles.refresh, pressed && styles.dimmed]}
-            >
-              <Text style={styles.refreshText}>Check again</Text>
-            </Pressable>
-          </View>
+          {health.isError ? (
+            <View style={styles.offline}>
+              <Text style={styles.offlineText}>
+                Flowstate can’t reach its server. Check that the API is running, then try again.
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Check the connection again"
+                disabled={health.isFetching}
+                onPress={() => void health.refetch()}
+                style={({ pressed }) => [
+                  styles.retry,
+                  (pressed || health.isFetching) && styles.dimmed,
+                ]}
+              >
+                <Text style={styles.retryText}>
+                  {health.isFetching ? 'Checking…' : 'Check again'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
       {selectedDecision ? (
@@ -92,41 +107,44 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F6F8FC' },
-  scroll: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 56, paddingBottom: 36 },
-  content: { width: '100%', maxWidth: 420, alignSelf: 'center' },
-  title: { fontSize: 44, fontWeight: '700', letterSpacing: -2, color: '#182B42' },
-  subtitle: { fontSize: 18, lineHeight: 27, color: '#52647B', marginTop: 12, maxWidth: 320 },
-  magicBar: {
-    marginTop: 42,
-    borderWidth: 1,
-    borderColor: '#CCD9ED',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
-    shadowColor: '#245CCA',
-    shadowOpacity: 0.07,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+  screen: { flex: 1, backgroundColor: colors.page },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 28, paddingBottom: 36 },
+  content: { width: '100%', maxWidth: 440, alignSelf: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brand: { fontFamily: fonts.display, fontSize: 30, letterSpacing: -1, color: colors.ink },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  statusText: { fontFamily: fonts.body, fontSize: 13 },
+  subtitle: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    lineHeight: 23,
+    color: colors.muted,
+    marginTop: 10,
+    maxWidth: 340,
   },
-  inputLabel: { color: '#245CCA', fontSize: 11, fontWeight: '800', letterSpacing: 1.4 },
-  input: {
-    minHeight: 80,
-    maxHeight: 150,
-    color: '#182B42',
-    fontSize: 19,
-    lineHeight: 28,
-    marginTop: 13,
+  feedback: { fontFamily: fonts.body, color: colors.muted, fontSize: 14, marginTop: 14 },
+  error: {
+    fontFamily: fonts.body,
+    color: colors.danger,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 14,
   },
-  feedback: { color: '#68788C', fontSize: 13, marginTop: 14 },
-  error: { color: '#B33B35', fontSize: 13, lineHeight: 20, marginTop: 14 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 48 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  status: { color: '#52647B', fontSize: 13 },
-  refresh: { marginLeft: 'auto', paddingVertical: 8 },
-  refreshText: { color: '#245CCA', fontSize: 13, fontWeight: '600' },
+  offline: {
+    marginTop: 28,
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: colors.soft,
+    gap: 10,
+  },
+  offlineText: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: colors.ink },
+  retry: { alignSelf: 'flex-start', paddingVertical: 6 },
+  retryText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.ink,
+    textDecorationLine: 'underline',
+  },
   dimmed: { opacity: 0.6 },
 });

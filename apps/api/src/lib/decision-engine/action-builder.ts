@@ -1,4 +1,11 @@
-import type { Intent, IntentAction, SearchScope, TaskPriority } from '@flowstate/types';
+import type {
+  HighlightField,
+  Intent,
+  IntentAction,
+  IntentHighlight,
+  SearchScope,
+  TaskPriority,
+} from '@flowstate/types';
 
 import { NOTE_PREFIX, type ActionCandidates, type Candidate } from './action-candidates.ts';
 
@@ -21,8 +28,9 @@ const TASK_PREFIX =
 const EVENT_PREFIX = /^(?:schedule|set up|book|add)\s+(?:an?\s+)?/i;
 const SEARCH_PREFIX =
   /^(?:find|search(?:\s+for)?|look\s+(?:up|for)|where\s+(?:is|are)|show\s+me)\s+(?:my\s+)?/i;
-const PRIORITY_CUE =
-  /,?\s*\b(?:urgent(?:ly)?|asap|critical|important|(?:high|low)[- ]priority|no rush|whenever)\b/gi;
+const PRIORITY_WORDS =
+  /\b(?:urgent(?:ly)?|asap|critical|important|(?:high|low)[- ]priority|no rush|whenever)\b/i;
+const PRIORITY_CUE = new RegExp(`,?\\s*${PRIORITY_WORDS.source}`, 'gi');
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -102,4 +110,52 @@ export function buildIntentAction(
     case 'UNKNOWN':
       return undefined;
   }
+}
+
+// The spans that produced the draft's fields, so the client can mark up the input.
+export function buildHighlights(
+  intent: Intent,
+  text: string,
+  candidates: ActionCandidates,
+  selections: FieldSelections,
+): IntentHighlight[] {
+  const input = text.trim().replace(/\s+/g, ' ');
+  const chosen: [HighlightField, Candidate<unknown> | undefined][] = [];
+  switch (intent) {
+    case 'CREATE_TASK': {
+      chosen.push(['when', pick(candidates.when, selections.when)]);
+      const priority = selections.priority ?? 'normal';
+      const cue = priority !== 'normal' && input.match(PRIORITY_WORDS);
+      if (cue && cue.index !== undefined)
+        chosen.push([
+          'priority',
+          {
+            id: 'priority',
+            start: cue.index,
+            end: cue.index + cue[0].length,
+            text: cue[0],
+            value: 0,
+          },
+        ]);
+      break;
+    }
+    case 'CREATE_EVENT':
+      chosen.push(
+        ['when', pick(candidates.when, selections.when)],
+        ['duration', pick(candidates.duration, selections.duration)],
+        ['location', pick(candidates.location, selections.location)],
+        ['attendees', pick(candidates.attendees, selections.attendees)],
+      );
+      break;
+    case 'SEARCH':
+      chosen.push(['range', pick(candidates.range, selections.range)]);
+      break;
+    default:
+      break;
+  }
+  return chosen
+    .flatMap(([field, span]) =>
+      span ? [{ field, start: span.start, end: span.end, text: span.text }] : [],
+    )
+    .sort((a, b) => a.start - b.start);
 }

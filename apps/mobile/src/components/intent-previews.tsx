@@ -1,4 +1,4 @@
-import type { IntentDecision } from '@flowstate/types';
+import type { HighlightField, Intent, IntentDecision } from '@flowstate/types';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { previewEmphasis, type PreviewEmphasis } from '@/lib/intent-confidence';
@@ -11,123 +11,169 @@ import {
   displayTitle,
   SCOPE_OPTIONS,
 } from '@/lib/intent-display';
+import { colors, fonts, markers } from '@/lib/theme';
 
-interface PreviewProps {
-  decision: IntentDecision;
-  emphasis: PreviewEmphasis;
-  onContinue: () => void;
+interface DetailRow {
+  label: string;
+  value: string | null | undefined;
+  // Set when the value came from a marked span, so it wears the same marker color.
+  field?: HighlightField;
 }
 
+interface Draft {
+  title: string | undefined;
+  rows: DetailRow[];
+}
+
+const CARD_COPY: Record<
+  Exclude<Intent, 'UNKNOWN'>,
+  { label: string; tentative: string; action: string }
+> = {
+  CREATE_EVENT: { label: 'New event', tentative: 'Maybe a new event', action: 'Review event' },
+  CREATE_TASK: { label: 'New task', tentative: 'Maybe a new task', action: 'Review task' },
+  CREATE_NOTE: { label: 'New note', tentative: 'Maybe a new note', action: 'Review note' },
+  SEARCH: { label: 'Search', tentative: 'Maybe a search', action: 'Search' },
+};
+
+// Each draft prefers the typed action and falls back to legacy entities.
+function eventDraft({ action, entities }: IntentDecision): Draft {
+  if (action?.kind !== 'CREATE_EVENT')
+    return {
+      title: entities.title,
+      rows: [
+        {
+          label: 'When',
+          value: [displayDate(entities.date), displayTime(entities.time)]
+            .filter(Boolean)
+            .join(' · '),
+        },
+        { label: 'With', value: entities.person },
+      ],
+    };
+  return {
+    title: action.title || entities.title,
+    rows: [
+      { label: 'When', value: displayLocalDateTime(action.start), field: 'when' },
+      {
+        label: 'For',
+        value: action.start && displayDuration(action.durationMin),
+        field: 'duration',
+      },
+      { label: 'Where', value: action.location, field: 'location' },
+      { label: 'With', value: action.attendees.join(', '), field: 'attendees' },
+    ],
+  };
+}
+
+function taskDraft({ action, entities }: IntentDecision): Draft {
+  if (action?.kind !== 'CREATE_TASK')
+    return { title: entities.title, rows: [{ label: 'Due', value: displayDate(entities.date) }] };
+  return {
+    title: action.title || entities.title,
+    rows: [
+      { label: 'Due', value: displayLocalDateTime(action.due), field: 'when' },
+      {
+        label: 'Priority',
+        value: action.priority === 'normal' ? null : displayTitle(action.priority),
+        field: 'priority',
+      },
+    ],
+  };
+}
+
+function noteDraft({ action, entities }: IntentDecision): Draft {
+  const note = action?.kind === 'CREATE_NOTE' ? action : null;
+  const title = note?.title || entities.title;
+  return {
+    title: title && displayTitle(title),
+    rows: [{ label: 'Note', value: note?.body }],
+  };
+}
+
+function searchDraft({ action, entities }: IntentDecision): Draft {
+  const search = action?.kind === 'SEARCH' ? action : null;
+  const query = search?.query || entities.query;
+  const scope = SCOPE_OPTIONS.find((option) => option.value === search?.scope);
+  return {
+    title: query && displayTitle(query),
+    rows: [
+      { label: 'In', value: search?.scope === 'all' ? null : scope?.label },
+      { label: 'Dates', value: displayRange(search?.range ?? null), field: 'range' },
+    ],
+  };
+}
+
+const DRAFTS = {
+  CREATE_EVENT: eventDraft,
+  CREATE_TASK: taskDraft,
+  CREATE_NOTE: noteDraft,
+  SEARCH: searchDraft,
+};
+
 function PreviewCard({
-  label,
-  title,
-  detail,
-  action = 'Continue →',
+  decision,
+  intent,
   emphasis,
   onContinue,
 }: {
-  label: string;
-  title: string;
-  detail?: string;
-  action?: string;
+  decision: IntentDecision;
+  intent: Exclude<Intent, 'UNKNOWN'>;
   emphasis: PreviewEmphasis;
   onContinue: () => void;
 }) {
+  const { title, rows } = DRAFTS[intent](decision);
+  if (!title) return null;
+  const copy = CARD_COPY[intent];
+  const marked = new Set(decision.highlights?.map((span) => span.field));
+  const tentative = emphasis === 'medium';
+
   return (
-    <View style={[styles.card, emphasis === 'medium' && styles.subtleCard]}>
-      <Text style={styles.label}>{label}</Text>
+    <View style={[styles.card, tentative && styles.cardTentative]}>
+      <View style={styles.header}>
+        <Text style={styles.kind}>{tentative ? copy.tentative : copy.label}</Text>
+        <Text style={styles.kind}>{Math.round(decision.confidence * 100)}% sure</Text>
+      </View>
       <Text style={styles.title}>{title}</Text>
-      {detail ? (
-        <Text style={styles.detail} numberOfLines={2}>
-          {detail}
-        </Text>
+      {rows.some((row) => row.value) ? (
+        <View style={styles.rows}>
+          {rows.map((row) =>
+            row.value ? (
+              <View key={row.label} style={styles.row}>
+                <Text style={styles.rowLabel}>{row.label}</Text>
+                <View style={styles.rowValue}>
+                  <Text
+                    numberOfLines={row.label === 'Note' ? 3 : 2}
+                    style={[
+                      styles.value,
+                      row.field &&
+                        marked.has(row.field) && {
+                          backgroundColor: markers[row.field],
+                          ...styles.valueMarked,
+                        },
+                    ]}
+                  >
+                    {row.value}
+                  </Text>
+                </View>
+              </View>
+            ) : null,
+          )}
+        </View>
       ) : null}
       <Pressable
         accessibilityRole="button"
         onPress={onContinue}
-        style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.button,
+          tentative && styles.buttonTentative,
+          pressed && styles.pressed,
+        ]}
       >
-        <Text style={styles.actionText}>{action}</Text>
+        <Text style={[styles.buttonText, tentative && styles.buttonTextTentative]}>
+          {copy.action}
+        </Text>
       </Pressable>
     </View>
-  );
-}
-
-// Each preview prefers the typed action draft and falls back to legacy entities.
-export function EventIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const action = decision.action?.kind === 'CREATE_EVENT' ? decision.action : null;
-  const { date, time } = decision.entities;
-  const title = action?.title || decision.entities.title;
-  if (!title) return null;
-  const detail = action
-    ? [
-        displayLocalDateTime(action.start),
-        action.start && displayDuration(action.durationMin),
-        action.location,
-      ]
-    : [displayDate(date), displayTime(time)];
-  return (
-    <PreviewCard
-      label="Schedule Event"
-      title={title}
-      detail={detail.filter(Boolean).join(' · ')}
-      emphasis={emphasis}
-      onContinue={onContinue}
-    />
-  );
-}
-
-export function TaskIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const action = decision.action?.kind === 'CREATE_TASK' ? decision.action : null;
-  const title = action?.title || decision.entities.title;
-  if (!title) return null;
-  const detail = action
-    ? [
-        displayLocalDateTime(action.due),
-        action.priority === 'normal' ? null : `${displayTitle(action.priority)} priority`,
-      ]
-    : [displayDate(decision.entities.date)];
-  return (
-    <PreviewCard
-      label="Create Task"
-      title={title}
-      detail={detail.filter(Boolean).join(' · ') || undefined}
-      emphasis={emphasis}
-      onContinue={onContinue}
-    />
-  );
-}
-
-export function NoteIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const action = decision.action?.kind === 'CREATE_NOTE' ? decision.action : null;
-  const title = action?.title || decision.entities.title;
-  if (!title) return null;
-  return (
-    <PreviewCard
-      label="Create Note"
-      title={displayTitle(title)}
-      detail={action?.body ?? undefined}
-      emphasis={emphasis}
-      onContinue={onContinue}
-    />
-  );
-}
-
-export function SearchIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const action = decision.action?.kind === 'SEARCH' ? decision.action : null;
-  const query = action?.query || decision.entities.query;
-  if (!query) return null;
-  const scope = SCOPE_OPTIONS.find((option) => option.value === action?.scope);
-  const detail = [action?.scope !== 'all' && scope?.label, displayRange(action?.range ?? null)];
-  return (
-    <PreviewCard
-      label="Search"
-      title={displayTitle(query)}
-      detail={detail.filter(Boolean).join(' · ') || undefined}
-      action="Search →"
-      emphasis={emphasis}
-      onContinue={onContinue}
-    />
   );
 }
 
@@ -138,44 +184,55 @@ export function IntentPreview({
   decision: IntentDecision | null;
   onContinue: () => void;
 }) {
-  if (!decision) return null;
+  if (!decision || decision.intent === 'UNKNOWN') return null;
   const emphasis = previewEmphasis(decision);
   if (emphasis === 'none') return null;
-  const props = { decision, emphasis, onContinue };
-
-  switch (decision.intent) {
-    case 'CREATE_EVENT':
-      return <EventIntentPreview {...props} />;
-    case 'CREATE_TASK':
-      return <TaskIntentPreview {...props} />;
-    case 'CREATE_NOTE':
-      return <NoteIntentPreview {...props} />;
-    case 'SEARCH':
-      return <SearchIntentPreview {...props} />;
-    case 'UNKNOWN':
-      return null;
-  }
+  return (
+    <PreviewCard
+      decision={decision}
+      intent={decision.intent}
+      emphasis={emphasis}
+      onContinue={onContinue}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
   card: {
     marginTop: 20,
-    padding: 24,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE5F2',
-    shadowColor: '#182B42',
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.page,
+    gap: 12,
   },
-  subtleCard: { backgroundColor: '#F9FBFE', shadowOpacity: 0, elevation: 0 },
-  label: { color: '#245CCA', fontSize: 13, fontWeight: '700', letterSpacing: 0.4 },
-  title: { color: '#182B42', fontSize: 24, fontWeight: '700', marginTop: 12 },
-  detail: { color: '#52647B', fontSize: 16, marginTop: 8 },
-  action: { alignSelf: 'flex-start', marginTop: 24, paddingVertical: 9, paddingRight: 12 },
-  actionText: { color: '#245CCA', fontSize: 16, fontWeight: '700' },
-  pressed: { opacity: 0.6 },
+  cardTentative: { borderColor: colors.faint, borderStyle: 'dashed' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  kind: { fontFamily: fonts.body, fontSize: 14, color: colors.muted },
+  title: {
+    fontFamily: fonts.heading,
+    fontSize: 23,
+    lineHeight: 28,
+    letterSpacing: -0.3,
+    color: colors.ink,
+  },
+  rows: { gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'baseline' },
+  rowLabel: { width: 64, fontFamily: fonts.body, fontSize: 14, color: colors.muted },
+  rowValue: { flex: 1, alignItems: 'flex-start' },
+  value: { fontFamily: fonts.input, fontSize: 16, lineHeight: 22, color: colors.ink },
+  valueMarked: { borderRadius: 4, paddingHorizontal: 4, marginHorizontal: -4, overflow: 'hidden' },
+  button: {
+    marginTop: 6,
+    paddingVertical: 14,
+    borderRadius: 999,
+    backgroundColor: colors.ink,
+    borderWidth: 2,
+    borderColor: colors.ink,
+  },
+  buttonTentative: { backgroundColor: colors.page },
+  buttonText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.page, textAlign: 'center' },
+  buttonTextTentative: { color: colors.ink },
+  pressed: { opacity: 0.7 },
 });

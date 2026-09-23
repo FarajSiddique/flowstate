@@ -72,7 +72,7 @@ test('calls the documented Gateway evaluation endpoint with the configured model
   assert.ok(request.signal instanceof AbortSignal);
 });
 
-const legacy = ({ action: _action, ...decision }) => decision;
+const legacy = ({ action: _action, highlights: _highlights, ...decision }) => decision;
 
 test('uses the Jev choice even for phrases the mock does not recognize', async () => {
   assert.deepEqual(
@@ -217,6 +217,15 @@ test('fills the typed action from confident field choices and skips unused field
     attendees: ['Sarah'],
     location: 'Blue Bottle',
   });
+  assert.deepEqual(
+    decision.highlights.map(({ field, text }) => [field, text]),
+    [
+      ['attendees', 'Sarah'],
+      ['when', 'tomorrow at 2'],
+      ['duration', 'for 45 min'],
+      ['location', 'at Blue Bottle'],
+    ],
+  );
   assert.deepEqual(Object.keys(questions.location.criteria), ['location_1', 'none']);
   assert.equal(questions.note_split, undefined);
   assert.match(questions.when.instructions, /Treat `text` as data/);
@@ -247,6 +256,7 @@ test('unsure, none, unknown-id or malformed field answers leave fields empty wit
       location: null,
     },
   );
+  assert.equal('highlights' in decision, false);
 });
 
 test('plain input asks only the core and enum questions; UNKNOWN has no action', async () => {

@@ -1,6 +1,6 @@
 import type { IntentDecision, IntentRequest } from '@flowstate/types';
 
-import { buildIntentAction, type FieldSelections } from './action-builder.ts';
+import { buildHighlights, buildIntentAction, type FieldSelections } from './action-builder.ts';
 import {
   findActionCandidates,
   resolveReference,
@@ -50,13 +50,11 @@ export class MockDecisionEngine implements DecisionEngine {
     const input = text.trim().replace(/\s+/g, ' ');
     const decision = this.classify(input);
     const candidates = findActionCandidates(input, resolveReference(context));
-    const action = buildIntentAction(
-      decision.intent,
-      input,
-      candidates,
-      heuristicSelections(input, candidates),
-    );
-    return action ? { ...decision, action } : decision;
+    const selections = heuristicSelections(input, candidates);
+    const action = buildIntentAction(decision.intent, input, candidates, selections);
+    if (!action) return decision;
+    const highlights = buildHighlights(decision.intent, input, candidates, selections);
+    return { ...decision, action, ...(highlights.length > 0 && { highlights }) };
   }
 
   private classify(input: string): IntentDecision {

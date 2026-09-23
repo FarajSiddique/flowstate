@@ -1,4 +1,4 @@
-import type { IntentDecision } from '@flowstate/types';
+import type { HighlightField, IntentDecision } from '@flowstate/types';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -21,11 +21,12 @@ import {
   PRIORITY_OPTIONS,
   SCOPE_OPTIONS,
 } from '@/lib/intent-display';
+import { colors, fonts, markers } from '@/lib/theme';
 
 const FORM_COPY = {
-  CREATE_EVENT: { heading: 'New Event', action: 'Create Event' },
-  CREATE_TASK: { heading: 'New Task', action: 'Create Task' },
-  CREATE_NOTE: { heading: 'New Note', action: 'Create Note' },
+  CREATE_EVENT: { heading: 'New event', action: 'Create event' },
+  CREATE_TASK: { heading: 'New task', action: 'Create task' },
+  CREATE_NOTE: { heading: 'New note', action: 'Create note' },
   SEARCH: { heading: 'Search', action: 'Search' },
   UNKNOWN: { heading: '', action: '' },
 } as const;
@@ -44,6 +45,17 @@ type FormFields = Record<
   | 'scope',
   string
 >;
+
+// Form fields filled from a marked span keep that span's marker color beside their label.
+const FIELD_MARKERS: Partial<Record<keyof FormFields, HighlightField>> = {
+  date: 'when',
+  time: 'when',
+  duration: 'duration',
+  location: 'location',
+  attendees: 'attendees',
+  priority: 'priority',
+  range: 'range',
+};
 
 // Prefill from the typed action draft; legacy entities cover older API responses.
 function initialFields({ action, entities }: IntentDecision): FormFields {
@@ -101,32 +113,45 @@ export function IntentConfirmationModal({
 }) {
   const [fields, setFields] = useState(() => initialFields(decision));
   const copy = FORM_COPY[decision.intent];
+  const marked = new Set(decision.highlights?.map((span) => span.field));
+  const label = (text: string, key: keyof FormFields) => {
+    const field = FIELD_MARKERS[key];
+    return (
+      <View style={styles.labelRow}>
+        {field && marked.has(field) ? (
+          <View style={[styles.swatch, { backgroundColor: markers[field] }]} />
+        ) : null}
+        <Text style={styles.fieldLabel}>{text}</Text>
+      </View>
+    );
+  };
   const update = (key: keyof FormFields, value: string) =>
     setFields((current) => ({ ...current, [key]: value }));
 
-  const field = (label: string, key: keyof FormFields, multiline = false) => (
+  const field = (title: string, key: keyof FormFields, multiline = false) => (
     <View style={styles.field} key={key}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      {label(title, key)}
       <TextInput
-        accessibilityLabel={label}
+        accessibilityLabel={title}
         value={fields[key]}
         onChangeText={(value) => update(key, value)}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
         style={[styles.fieldInput, multiline && styles.multiline]}
-        placeholderTextColor="#8392A5"
+        placeholderTextColor={colors.faint}
+        selectionColor={colors.ink}
       />
     </View>
   );
 
   const segmented = (
-    label: string,
+    title: string,
     key: 'priority' | 'scope',
     options: readonly { value: string; label: string }[],
   ) => (
     <View style={styles.field} key={key}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.segments}>
+      {label(title, key)}
+      <View accessibilityRole="radiogroup" accessibilityLabel={title} style={styles.segments}>
         {options.map((option) => {
           const selected = fields[key] === option.value;
           return (
@@ -197,7 +222,7 @@ export function IntentConfirmationModal({
             >
               <Text style={styles.submitText}>{copy.action}</Text>
             </Pressable>
-            <Text style={styles.hint}>Preview only · Nothing is saved yet</Text>
+            <Text style={styles.hint}>Preview only. Nothing is saved yet.</Text>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -207,20 +232,20 @@ export function IntentConfirmationModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(19, 37, 61, 0.34)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: colors.scrim },
   sheet: {
     maxHeight: '85%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.page,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingBottom: 36,
   },
   handle: {
     width: 40,
     height: 5,
     borderRadius: 3,
-    backgroundColor: '#CDD7E6',
+    backgroundColor: colors.line,
     alignSelf: 'center',
     marginTop: 12,
   },
@@ -228,36 +253,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 24,
   },
-  heading: { color: '#182B42', fontSize: 28, fontWeight: '700' },
-  close: { color: '#52647B', fontSize: 15, fontWeight: '600' },
-  field: { marginTop: 24 },
-  fieldLabel: { color: '#52647B', fontSize: 13, fontWeight: '700', marginBottom: 8 },
+  heading: { fontFamily: fonts.display, fontSize: 28, letterSpacing: -0.6, color: colors.ink },
+  close: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.muted },
+  field: { marginTop: 20 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  swatch: { width: 14, height: 10, borderRadius: 3 },
+  fieldLabel: { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.muted },
   fieldInput: {
-    borderWidth: 1,
-    borderColor: '#DCE5F2',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    color: '#182B42',
+    borderWidth: 2,
+    borderColor: colors.line,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: fonts.input,
     fontSize: 17,
+    color: colors.ink,
   },
-  submit: { backgroundColor: '#245CCA', padding: 17, borderRadius: 14, marginTop: 30 },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  hint: { textAlign: 'center', color: '#8392A5', fontSize: 12, marginTop: 14 },
+  submit: { backgroundColor: colors.ink, padding: 16, borderRadius: 999, marginTop: 28 },
+  submitText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.page, textAlign: 'center' },
+  hint: {
+    fontFamily: fonts.body,
+    textAlign: 'center',
+    color: colors.muted,
+    fontSize: 13,
+    marginTop: 12,
+  },
   multiline: { minHeight: 110 },
   segments: {
     flexDirection: 'row',
-    borderWidth: 1,
-    borderColor: '#DCE5F2',
-    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.line,
+    borderRadius: 14,
     padding: 3,
     gap: 3,
   },
-  segment: { flex: 1, paddingVertical: 10, borderRadius: 9 },
-  segmentSelected: { backgroundColor: '#245CCA' },
-  segmentText: { color: '#52647B', fontSize: 14, fontWeight: '600', textAlign: 'center' },
-  segmentTextSelected: { color: '#FFFFFF' },
-  pressed: { opacity: 0.65 },
+  segment: { flex: 1, paddingVertical: 9, borderRadius: 10 },
+  segmentSelected: { backgroundColor: colors.ink },
+  segmentText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.muted,
+    textAlign: 'center',
+  },
+  segmentTextSelected: { color: colors.page },
+  pressed: { opacity: 0.7 },
 });

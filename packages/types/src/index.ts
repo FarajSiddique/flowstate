@@ -105,6 +105,31 @@ export const intentActionSchema = z.discriminatedUnion('kind', [
 
 export type IntentAction = z.infer<typeof intentActionSchema>;
 
+export const highlightFieldSchema = z.enum([
+  'when',
+  'duration',
+  'location',
+  'attendees',
+  'range',
+  'priority',
+]);
+
+export type HighlightField = z.infer<typeof highlightFieldSchema>;
+
+// Offsets index the input after trimming and collapsing whitespace; `end` is exclusive.
+export const intentHighlightSchema = z
+  .object({
+    field: highlightFieldSchema,
+    start: z.number().int().min(0),
+    end: z.number().int().min(1),
+    text: z.string().min(1),
+  })
+  .refine((span) => span.end - span.start === span.text.length, {
+    message: 'Highlight offsets must match its text',
+  });
+
+export type IntentHighlight = z.infer<typeof intentHighlightSchema>;
+
 export const intentResponseSchema = z
   .object({
     intent: intentSchema,
@@ -112,6 +137,8 @@ export const intentResponseSchema = z
     entities: intentEntitiesSchema,
     // Additive typed draft; older clients keep reading `entities`.
     action: intentActionSchema.optional(),
+    // Source spans behind the draft's fields, for marking up the user's own text.
+    highlights: z.array(intentHighlightSchema).max(12).optional(),
   })
   .refine((decision) => !decision.action || decision.action.kind === decision.intent, {
     message: 'Action kind must match intent',

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildIntentAction } from '../apps/api/src/lib/decision-engine/action-builder.ts';
+import {
+  buildHighlights,
+  buildIntentAction,
+} from '../apps/api/src/lib/decision-engine/action-builder.ts';
 import {
   findActionCandidates,
   resolveReference,
@@ -89,4 +92,25 @@ test('note uses the selected split; search keeps the query without the range', (
 test('unknown intent and unknown candidate ids produce no values', () => {
   assert.equal(build('UNKNOWN', 'asdf banana purple'), undefined);
   assert.equal(build('CREATE_TASK', 'pay rent tomorrow', { when: 'when_9' }).due, null);
+});
+
+test('highlights mark only the spans behind the draft, including the priority cue', () => {
+  const marks = (intent, text, selections) =>
+    buildHighlights(intent, text, findActionCandidates(text, reference), selections).map(
+      ({ field, start, end, text: span }) => {
+        assert.equal(text.slice(start, end), span);
+        return [field, span];
+      },
+    );
+  const task = 'finish report by Friday, urgent';
+  assert.deepEqual(marks('CREATE_TASK', task, { when: 'when_1', priority: 'high' }), [
+    ['when', 'by Friday'],
+    ['priority', 'urgent'],
+  ]);
+  // An unsure priority is treated as normal, so the cue stays unmarked.
+  assert.deepEqual(marks('CREATE_TASK', task, { when: 'when_1' }), [['when', 'by Friday']]);
+  assert.deepEqual(marks('SEARCH', 'search notes from last week', { range: 'range_1' }), [
+    ['range', 'from last week'],
+  ]);
+  assert.deepEqual(marks('CREATE_NOTE', 'note that onboarding: needs work', {}), []);
 });

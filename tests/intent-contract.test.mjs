@@ -67,3 +67,16 @@ test('intent response accepts a typed action only when it matches the intent', (
     },
   });
 });
+
+test('highlights are optional and their offsets must match their text', () => {
+  const base = { intent: 'CREATE_TASK', confidence: 0.9, entities: {} };
+  const highlight = { field: 'when', start: 12, end: 20, text: 'tomorrow' };
+  assert.equal(intentResponseSchema.safeParse({ ...base, highlights: [highlight] }).success, true);
+  for (const bad of [
+    { ...highlight, end: 22 },
+    { ...highlight, field: 'mood' },
+    { ...highlight, text: '' },
+  ]) {
+    assert.equal(intentResponseSchema.safeParse({ ...base, highlights: [bad] }).success, false);
+  }
+});

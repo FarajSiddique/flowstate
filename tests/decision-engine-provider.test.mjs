@@ -28,6 +28,10 @@ test('mock remains the default and needs no Gateway configuration', async () => 
           attendees: ['Sarah'],
           location: null,
         },
+        highlights: [
+          { field: 'attendees', start: 5, end: 10, text: 'Sarah' },
+          { field: 'when', start: 11, end: 24, text: 'tomorrow at 2' },
+        ],
       },
     );
   }

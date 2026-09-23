@@ -6,7 +6,7 @@ import {
 } from '@flowstate/types';
 import { z } from 'zod';
 
-import { buildIntentAction } from './action-builder.ts';
+import { buildHighlights, buildIntentAction } from './action-builder.ts';
 import { findActionCandidates, resolveReference } from './action-candidates.ts';
 import { buildFieldQuestions, readFieldSelections } from './action-questions.ts';
 import type { DecisionEngine } from './index';
@@ -113,17 +113,15 @@ export class JevDecisionEngine implements DecisionEngine {
         failure = 'invalid_response';
         const { answers } = evaluationSchema.parse(await response.json());
         const { choice, confidence, probabilities } = answers.intent;
-        const action = buildIntentAction(
-          choice,
-          text,
-          candidates,
-          readFieldSelections(answers, candidates),
-        );
+        const selections = readFieldSelections(answers, candidates);
+        const action = buildIntentAction(choice, text, candidates, selections);
+        const highlights = action ? buildHighlights(choice, text, candidates, selections) : [];
         return intentResponseSchema.parse({
           intent: choice,
           confidence: Math.min(confidence ?? probabilities[choice], answers.ready.probability),
           entities: extractIntentEntities(choice, text),
           ...(action && { action }),
+          ...(highlights.length > 0 && { highlights }),
         });
       };
       // Bound both the network call and response body parsing, even if transport stalls.

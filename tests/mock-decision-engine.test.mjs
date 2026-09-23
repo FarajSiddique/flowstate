@@ -20,6 +20,10 @@ test('classifies an event with person, date and 24-hour time', async () => {
       attendees: ['Sarah'],
       location: null,
     },
+    highlights: [
+      { field: 'attendees', start: 5, end: 10, text: 'Sarah' },
+      { field: 'when', start: 11, end: 24, text: 'tomorrow at 2' },
+    ],
   });
 });
 
@@ -36,6 +40,7 @@ test('classifies a dated task', async () => {
         due: { date: '2026-09-24', time: null },
         priority: 'normal',
       },
+      highlights: [{ field: 'when', start: 35, end: 43, text: 'tomorrow' }],
     },
   );
 });
