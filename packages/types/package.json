@@ -1,0 +1,21 @@
+{
+  "name": "@flowstate/types",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@flowstate/config": "workspace:*",
+    "eslint": "^9.39.1",
+    "typescript": "~6.0.3"
+  }
+}

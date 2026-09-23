@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "flowstate",
+    "slug": "flowstate",
+    "version": "1.0.0",
+    "scheme": "flowstate",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true },
+    "web": { "bundler": "metro", "output": "single" }
+  }
+}
