@@ -1,5 +1,11 @@
 import type { IntentDecision, IntentRequest } from '@flowstate/types';
 
+import { buildIntentAction, type FieldSelections } from './action-builder.ts';
+import {
+  findActionCandidates,
+  resolveReference,
+  type ActionCandidates,
+} from './action-candidates.ts';
 import type { DecisionEngine } from './index';
 
 function capitalize(text: string): string {
@@ -15,10 +21,45 @@ function parseTime(hourText: string, minuteText?: string, period?: string): stri
   return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 }
 
-export class MockDecisionEngine implements DecisionEngine {
-  async classifyIntent({ text }: IntentRequest): Promise<IntentDecision> {
-    const input = text.trim().replace(/\s+/g, ' ');
+// Offline stand-in for Jev's field choices: first candidate wins, keywords set enums.
+function heuristicSelections(input: string, candidates: ActionCandidates): FieldSelections {
+  return {
+    when: candidates.when[0]?.id,
+    duration: candidates.duration[0]?.id,
+    location: candidates.location[0]?.id,
+    attendees: candidates.attendees[0]?.id,
+    range: candidates.range[0]?.id,
+    noteSplit: candidates.noteSplit[0]?.id,
+    priority: /\b(?:urgent|asap|critical|important|high priority)\b/i.test(input)
+      ? 'high'
+      : /\b(?:no rush|whenever|someday|low priority)\b/i.test(input)
+        ? 'low'
+        : 'normal',
+    scope: /\bnotes?\b/i.test(input)
+      ? 'notes'
+      : /\b(?:tasks?|to-?dos?|reminders?)\b/i.test(input)
+        ? 'tasks'
+        : /\b(?:events?|meetings?|calendar)\b/i.test(input)
+          ? 'events'
+          : 'all',
+  };
+}
 
+export class MockDecisionEngine implements DecisionEngine {
+  async classifyIntent({ text, context }: IntentRequest): Promise<IntentDecision> {
+    const input = text.trim().replace(/\s+/g, ' ');
+    const decision = this.classify(input);
+    const candidates = findActionCandidates(input, resolveReference(context));
+    const action = buildIntentAction(
+      decision.intent,
+      input,
+      candidates,
+      heuristicSelections(input, candidates),
+    );
+    return action ? { ...decision, action } : decision;
+  }
+
+  private classify(input: string): IntentDecision {
     const event = input.match(
       /^meet\s+(.+?)(?:\s+(today|tomorrow))?(?:\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?$/i,
     );

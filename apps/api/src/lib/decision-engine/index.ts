@@ -25,14 +25,13 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
         'AI_GATEWAY_API_KEY is required for AI_PROVIDER=jev.',
       );
     }
-      
 
     if (!model) {
       throw new DecisionEngineConfigurationError(
         'FLOWSTATE_INTENT_MODEL is required for AI_PROVIDER=jev.',
       );
     }
-      
+
     const timeoutMs = Number(env.FLOWSTATE_INTENT_TIMEOUT_MS ?? '3500');
 
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 4500) {
@@ -40,7 +39,7 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
         'FLOWSTATE_INTENT_TIMEOUT_MS must be an integer from 1 to 4500 (below the mobile timeout).',
       );
     }
-    
+
     engine = new JevDecisionEngine({ apiKey, model, timeoutMs });
   } else {
     throw new DecisionEngineConfigurationError('AI_PROVIDER must be mock or jev.');

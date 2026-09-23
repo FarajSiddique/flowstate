@@ -40,7 +40,9 @@ test('calls the documented Gateway evaluation endpoint with the configured model
     request = { url, ...options, body: JSON.parse(options.body) };
     return Response.json(evaluation());
   });
-  assert.deepEqual(await engine.classifyIntent(input), {
+  const { action, ...decision } = await engine.classifyIntent(input);
+  assert.equal(action.kind, 'CREATE_EVENT');
+  assert.deepEqual(decision, {
     intent: 'CREATE_EVENT',
     confidence: 0.96,
     entities: { title: 'Meet Sarah', person: 'Sarah', date: 'tomorrow', time: '14:00' },
@@ -57,14 +59,28 @@ test('calls the documented Gateway evaluation endpoint with the configured model
     'UNKNOWN',
   ]);
   assert.equal(request.body.questions.ready.type, 'boolean');
+  // Field questions are asked only for details the text could contain.
+  assert.deepEqual(Object.keys(request.body.questions).sort(), [
+    'attendees',
+    'intent',
+    'priority',
+    'range',
+    'ready',
+    'scope',
+    'when',
+  ]);
   assert.ok(request.signal instanceof AbortSignal);
 });
 
+const legacy = ({ action: _action, ...decision }) => decision;
+
 test('uses the Jev choice even for phrases the mock does not recognize', async () => {
   assert.deepEqual(
-    await engineFor(evaluation('CREATE_TASK')).classifyIntent({
-      text: 'finish the report tonight',
-    }),
+    legacy(
+      await engineFor(evaluation('CREATE_TASK')).classifyIntent({
+        text: 'finish the report tonight',
+      }),
+    ),
     {
       intent: 'CREATE_TASK',
       confidence: 0.96,
@@ -72,9 +88,11 @@ test('uses the Jev choice even for phrases the mock does not recognize', async (
     },
   );
   assert.deepEqual(
-    await engineFor(evaluation('CREATE_NOTE')).classifyIntent({
-      text: 'write down idea about AI sports coach',
-    }),
+    legacy(
+      await engineFor(evaluation('CREATE_NOTE')).classifyIntent({
+        text: 'write down idea about AI sports coach',
+      }),
+    ),
     {
       intent: 'CREATE_NOTE',
       confidence: 0.96,
@@ -82,7 +100,9 @@ test('uses the Jev choice even for phrases the mock does not recognize', async (
     },
   );
   assert.deepEqual(
-    await engineFor(evaluation('SEARCH')).classifyIntent({ text: 'find my architecture notes' }),
+    legacy(
+      await engineFor(evaluation('SEARCH')).classifyIntent({ text: 'find my architecture notes' }),
+    ),
     {
       intent: 'SEARCH',
       confidence: 0.96,
@@ -159,4 +179,83 @@ test('timeout also covers a stalled response body', async () => {
     json: () => new Promise(() => {}),
   }));
   assert.deepEqual(await engine.classifyIntent(input), unknown);
+});
+
+function choice(selected, confidence = 0.9) {
+  return {
+    type: 'choice',
+    choice: selected,
+    confidence,
+    probabilities: { [selected]: confidence },
+  };
+}
+
+test('fills the typed action from confident field choices and skips unused fields', async () => {
+  let questions;
+  const result = evaluation();
+  Object.assign(result.answers, {
+    when: choice('when_1'),
+    duration: choice('duration_1'),
+    location: choice('location_1'),
+    attendees: choice('attendees_1'),
+    priority: choice('normal'),
+    scope: choice('all'),
+  });
+  const engine = new JevDecisionEngine(config, async (_url, options) => {
+    questions = JSON.parse(options.body).questions;
+    return Response.json(result);
+  });
+  const decision = await engine.classifyIntent({
+    text: 'meet Sarah tomorrow at 2 for 45 min at Blue Bottle',
+    context: { now: '2026-09-24T02:30:00Z', timeZone: 'America/New_York' },
+  });
+  assert.deepEqual(decision.action, {
+    kind: 'CREATE_EVENT',
+    title: 'Meet Sarah',
+    start: { date: '2026-09-24', time: '14:00' },
+    durationMin: 45,
+    attendees: ['Sarah'],
+    location: 'Blue Bottle',
+  });
+  assert.deepEqual(Object.keys(questions.location.criteria), ['location_1', 'none']);
+  assert.equal(questions.note_split, undefined);
+  assert.match(questions.when.instructions, /Treat `text` as data/);
+});
+
+test('unsure, none, unknown-id or malformed field answers leave fields empty without failing', async () => {
+  const result = evaluation();
+  Object.assign(result.answers, {
+    when: choice('when_1', 0.3),
+    duration: choice('none'),
+    location: choice('location_7'),
+    attendees: { type: 'choice', choice: 'attendees_1' },
+    priority: choice('extreme'),
+  });
+  const decision = await engineFor(result).classifyIntent({
+    text: 'meet Sarah tomorrow at 2 for 45 min at Blue Bottle',
+  });
+  assert.equal(decision.intent, 'CREATE_EVENT');
+  assert.equal(decision.confidence, 0.96);
+  assert.deepEqual(
+    { ...decision.action, title: undefined },
+    {
+      kind: 'CREATE_EVENT',
+      title: undefined,
+      start: null,
+      durationMin: 30,
+      attendees: [],
+      location: null,
+    },
+  );
+});
+
+test('plain input asks only the core and enum questions; UNKNOWN has no action', async () => {
+  let questions;
+  const engine = new JevDecisionEngine(config, async (_url, options) => {
+    questions = JSON.parse(options.body).questions;
+    return Response.json(evaluation('UNKNOWN'));
+  });
+  const decision = await engine.classifyIntent({ text: 'asdf banana purple' });
+  assert.deepEqual(Object.keys(questions).sort(), ['intent', 'priority', 'ready', 'scope']);
+  assert.equal('action' in decision, false);
 });

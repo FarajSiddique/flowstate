@@ -1,8 +1,10 @@
 import {
   healthResponseSchema,
+  intentContextSchema,
   intentRequestSchema,
   intentResponseSchema,
   type HealthResponse,
+  type IntentContext,
   type IntentDecision,
   type IntentRequest,
 } from '@flowstate/types';
@@ -27,6 +29,18 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   }
 }
 
+// Lets the server resolve "tomorrow" in the user's zone; omitted if the runtime lacks it.
+function requestContext(): IntentContext | undefined {
+  try {
+    return intentContextSchema.safeParse({
+      now: new Date().toISOString(),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }).data;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function classifyIntent(
   input: IntentRequest,
   signal?: AbortSignal,
@@ -41,7 +55,9 @@ export async function classifyIntent(
     const response = await fetch(`${apiUrl}/api/intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(intentRequestSchema.parse(input)),
+      body: JSON.stringify(
+        intentRequestSchema.parse({ ...input, context: input.context ?? requestContext() }),
+      ),
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Intent request failed: ${response.status}`);

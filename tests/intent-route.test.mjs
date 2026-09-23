@@ -66,3 +66,24 @@ test('configuration errors return a generic 500 and log actionable server detail
   });
   assert.match(JSON.stringify(console.error.mock.calls), /AI_GATEWAY_API_KEY/);
 });
+
+test('route resolves actions against the client clock and rejects an invalid context', async (t) => {
+  configure(t, { AI_PROVIDER: 'mock' });
+  t.mock.method(console, 'info', () => {});
+  const context = { now: '2026-09-24T02:30:00Z', timeZone: 'Asia/Tokyo' };
+  const response = await POST(
+    request(JSON.stringify({ text: 'remind me to submit my application tomorrow', context })),
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).action, {
+    kind: 'CREATE_TASK',
+    title: 'Submit my application',
+    due: { date: '2026-09-25', time: null },
+    priority: 'normal',
+  });
+  const invalid = await POST(
+    request(JSON.stringify({ text: 'meet Sarah', context: { ...context, timeZone: 'Nowhere' } })),
+  );
+  assert.equal(invalid.status, 400);
+  assert.deepEqual(await invalid.json(), { error: 'Invalid request context.' });
+});

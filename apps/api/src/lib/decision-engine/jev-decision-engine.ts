@@ -6,6 +6,9 @@ import {
 } from '@flowstate/types';
 import { z } from 'zod';
 
+import { buildIntentAction } from './action-builder.ts';
+import { findActionCandidates, resolveReference } from './action-candidates.ts';
+import { buildFieldQuestions, readFieldSelections } from './action-questions.ts';
 import type { DecisionEngine } from './index';
 import { extractIntentEntities } from './intent-entities.ts';
 
@@ -17,7 +20,8 @@ export interface JevConfiguration {
 
 const probability = z.number().min(0).max(1);
 const evaluationSchema = z.object({
-  answers: z.object({
+  // Field answers are validated one by one in readFieldSelections.
+  answers: z.looseObject({
     intent: z.object({
       type: z.literal('choice'),
       choice: intentSchema,
@@ -67,7 +71,13 @@ export class JevDecisionEngine implements DecisionEngine {
     this.gatewayFetch = gatewayFetch;
   }
 
-  async classifyIntent({ text }: IntentRequest): Promise<IntentDecision> {
+  async classifyIntent({ text: rawText, context }: IntentRequest): Promise<IntentDecision> {
+    // Candidate offsets index this normalized text, which the action builder also uses.
+    const text = rawText.trim().replace(/\s+/g, ' ');
+    const candidates = findActionCandidates(text, resolveReference(context));
+    const allQuestions = { ...questions, ...buildFieldQuestions(candidates) };
+    if (process.env.NODE_ENV === 'development')
+      console.info(`[intent] provider=jev questions=${Object.keys(allQuestions).length}`);
     const controller = new AbortController();
     let failure = 'network_error';
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -87,7 +97,11 @@ export class JevDecisionEngine implements DecisionEngine {
             Authorization: `Bearer ${this.config.apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ model: this.config.model, state: { text }, questions }),
+          body: JSON.stringify({
+            model: this.config.model,
+            state: { text },
+            questions: allQuestions,
+          }),
           signal: controller.signal,
           cache: 'no-store',
         });
@@ -99,10 +113,17 @@ export class JevDecisionEngine implements DecisionEngine {
         failure = 'invalid_response';
         const { answers } = evaluationSchema.parse(await response.json());
         const { choice, confidence, probabilities } = answers.intent;
+        const action = buildIntentAction(
+          choice,
+          text,
+          candidates,
+          readFieldSelections(answers, candidates),
+        );
         return intentResponseSchema.parse({
           intent: choice,
           confidence: Math.min(confidence ?? probabilities[choice], answers.ready.probability),
           entities: extractIntentEntities(choice, text),
+          ...(action && { action }),
         });
       };
       // Bound both the network call and response body parsing, even if transport stalls.

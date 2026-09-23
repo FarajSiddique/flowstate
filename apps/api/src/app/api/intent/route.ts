@@ -27,10 +27,13 @@ export async function POST(request: Request) {
 
   const parsed = intentRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return Response.json({ error: 'Enter 3 to 500 characters of text.' }, { status: 400, headers });
+    const error = parsed.error.issues.some((issue) => issue.path[0] === 'context')
+      ? 'Invalid request context.'
+      : 'Enter 3 to 500 characters of text.';
+    return Response.json({ error }, { status: 400, headers });
   }
 
-  try {    
+  try {
     const decision = await getDecisionEngine().classifyIntent(parsed.data);
     return Response.json(intentResponseSchema.parse(decision), { headers });
   } catch (error) {

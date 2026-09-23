@@ -9,14 +9,25 @@ const config = {
   FLOWSTATE_INTENT_MODEL: 'typesafe-ai/jev',
 };
 
+// 22:30 on Sep 23 in New York, 02:30 on Sep 24 in UTC.
+const context = { now: '2026-09-24T02:30:00Z', timeZone: 'America/New_York' };
+
 test('mock remains the default and needs no Gateway configuration', async () => {
   for (const env of [{}, { AI_PROVIDER: 'mock' }]) {
     assert.deepEqual(
-      await getDecisionEngine(env).classifyIntent({ text: 'meet Sarah tomorrow at 2' }),
+      await getDecisionEngine(env).classifyIntent({ text: 'meet Sarah tomorrow at 2', context }),
       {
         intent: 'CREATE_EVENT',
         confidence: 0.96,
         entities: { title: 'Meet Sarah', person: 'Sarah', date: 'tomorrow', time: '14:00' },
+        action: {
+          kind: 'CREATE_EVENT',
+          title: 'Meet Sarah',
+          start: { date: '2026-09-24', time: '14:00' },
+          durationMin: 30,
+          attendees: ['Sarah'],
+          location: null,
+        },
       },
     );
   }

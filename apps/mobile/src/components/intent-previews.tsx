@@ -2,7 +2,15 @@ import type { IntentDecision } from '@flowstate/types';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { previewEmphasis, type PreviewEmphasis } from '@/lib/intent-confidence';
-import { displayDate, displayTime, displayTitle } from '@/lib/intent-display';
+import {
+  displayDate,
+  displayDuration,
+  displayLocalDateTime,
+  displayRange,
+  displayTime,
+  displayTitle,
+  SCOPE_OPTIONS,
+} from '@/lib/intent-display';
 
 interface PreviewProps {
   decision: IntentDecision;
@@ -29,7 +37,11 @@ function PreviewCard({
     <View style={[styles.card, emphasis === 'medium' && styles.subtleCard]}>
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.title}>{title}</Text>
-      {detail ? <Text style={styles.detail}>{detail}</Text> : null}
+      {detail ? (
+        <Text style={styles.detail} numberOfLines={2}>
+          {detail}
+        </Text>
+      ) : null}
       <Pressable
         accessibilityRole="button"
         onPress={onContinue}
@@ -41,15 +53,24 @@ function PreviewCard({
   );
 }
 
+// Each preview prefers the typed action draft and falls back to legacy entities.
 export function EventIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const { title, date, time } = decision.entities;
+  const action = decision.action?.kind === 'CREATE_EVENT' ? decision.action : null;
+  const { date, time } = decision.entities;
+  const title = action?.title || decision.entities.title;
   if (!title) return null;
-  const detail = [displayDate(date), displayTime(time)].filter(Boolean).join(' · ');
+  const detail = action
+    ? [
+        displayLocalDateTime(action.start),
+        action.start && displayDuration(action.durationMin),
+        action.location,
+      ]
+    : [displayDate(date), displayTime(time)];
   return (
     <PreviewCard
       label="Schedule Event"
       title={title}
-      detail={detail}
+      detail={detail.filter(Boolean).join(' · ')}
       emphasis={emphasis}
       onContinue={onContinue}
     />
@@ -57,13 +78,20 @@ export function EventIntentPreview({ decision, emphasis, onContinue }: PreviewPr
 }
 
 export function TaskIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const { title, date } = decision.entities;
+  const action = decision.action?.kind === 'CREATE_TASK' ? decision.action : null;
+  const title = action?.title || decision.entities.title;
   if (!title) return null;
+  const detail = action
+    ? [
+        displayLocalDateTime(action.due),
+        action.priority === 'normal' ? null : `${displayTitle(action.priority)} priority`,
+      ]
+    : [displayDate(decision.entities.date)];
   return (
     <PreviewCard
       label="Create Task"
       title={title}
-      detail={displayDate(date) ?? undefined}
+      detail={detail.filter(Boolean).join(' · ') || undefined}
       emphasis={emphasis}
       onContinue={onContinue}
     />
@@ -71,12 +99,14 @@ export function TaskIntentPreview({ decision, emphasis, onContinue }: PreviewPro
 }
 
 export function NoteIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const { title } = decision.entities;
+  const action = decision.action?.kind === 'CREATE_NOTE' ? decision.action : null;
+  const title = action?.title || decision.entities.title;
   if (!title) return null;
   return (
     <PreviewCard
       label="Create Note"
       title={displayTitle(title)}
+      detail={action?.body ?? undefined}
       emphasis={emphasis}
       onContinue={onContinue}
     />
@@ -84,12 +114,16 @@ export function NoteIntentPreview({ decision, emphasis, onContinue }: PreviewPro
 }
 
 export function SearchIntentPreview({ decision, emphasis, onContinue }: PreviewProps) {
-  const { query } = decision.entities;
+  const action = decision.action?.kind === 'SEARCH' ? decision.action : null;
+  const query = action?.query || decision.entities.query;
   if (!query) return null;
+  const scope = SCOPE_OPTIONS.find((option) => option.value === action?.scope);
+  const detail = [action?.scope !== 'all' && scope?.label, displayRange(action?.range ?? null)];
   return (
     <PreviewCard
       label="Search"
       title={displayTitle(query)}
+      detail={detail.filter(Boolean).join(' · ') || undefined}
       action="Search →"
       emphasis={emphasis}
       onContinue={onContinue}

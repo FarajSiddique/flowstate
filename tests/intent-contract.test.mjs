@@ -17,3 +17,53 @@ test('intent response validates confidence and known intent values', () => {
   assert.equal(intentResponseSchema.safeParse({ ...valid, confidence: 1.2 }).success, false);
   assert.equal(intentResponseSchema.safeParse({ ...valid, intent: 'CHAT' }).success, false);
 });
+
+test('intent request accepts an optional client clock and IANA time zone', () => {
+  const context = { now: '2026-09-24T02:30:00.000Z', timeZone: 'America/New_York' };
+  assert.deepEqual(intentRequestSchema.parse({ text: 'meet Sarah', context }), {
+    text: 'meet Sarah',
+    context,
+  });
+  for (const bad of [
+    { ...context, timeZone: 'Mars/Olympus' },
+    { ...context, now: 'tomorrow' },
+    { now: context.now },
+  ]) {
+    assert.equal(
+      intentRequestSchema.safeParse({ text: 'meet Sarah', context: bad }).success,
+      false,
+    );
+  }
+});
+
+test('intent response accepts a typed action only when it matches the intent', () => {
+  const task = {
+    intent: 'CREATE_TASK',
+    confidence: 0.9,
+    entities: { title: 'Pay rent' },
+    action: {
+      kind: 'CREATE_TASK',
+      title: 'Pay rent',
+      due: { date: '2026-09-24', time: null },
+      priority: 'high',
+    },
+  };
+  assert.deepEqual(intentResponseSchema.parse(task), task);
+  const reject = (change) => assert.equal(intentResponseSchema.safeParse(change).success, false);
+  reject({ ...task, intent: 'CREATE_NOTE' });
+  reject({ ...task, action: { ...task.action, due: { date: '24/09/2026', time: null } } });
+  reject({ ...task, action: { ...task.action, due: { date: '2026-09-24', time: '25:00' } } });
+  reject({ ...task, action: { ...task.action, priority: 'extreme' } });
+  reject({
+    ...task,
+    intent: 'CREATE_EVENT',
+    action: {
+      kind: 'CREATE_EVENT',
+      title: 'Standup',
+      start: null,
+      durationMin: 0,
+      attendees: [],
+      location: null,
+    },
+  });
+});
