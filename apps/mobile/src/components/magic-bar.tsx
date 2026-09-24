@@ -33,15 +33,19 @@ export function MagicBar({
   useEffect(() => {
     let cancelled = false;
     void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
       // Marks fade in when a decision arrives and clear at once when typing resumes.
-      if (reduceMotion || !marked) opacity.setValue(marked ? 1 : 0);
-      else
+      if (reduceMotion || !marked) {
+        opacity.setValue(marked ? 1 : 0);
+      } else {
         Animated.timing(opacity, {
           toValue: 1,
           duration: 220,
           useNativeDriver: Platform.OS !== 'web',
         }).start();
+      }
     });
     return () => {
       cancelled = true;

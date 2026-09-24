@@ -25,7 +25,9 @@ async function removeChunks(key: string, from: number, to: number) {
 export const secureSessionStorage = {
   async getItem(key: string): Promise<string | null> {
     const count = await chunkCount(key);
-    if (!count) return null;
+    if (!count) {
+      return null;
+    }
     const chunks = await Promise.all(
       Array.from({ length: count }, (_, index) => SecureStore.getItemAsync(chunkKey(key, index))),
     );

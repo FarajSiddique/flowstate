@@ -7,4 +7,5 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   prettier,
+  { rules: { curly: ['error', 'all'] } },
 ];

@@ -20,14 +20,18 @@ function cachedClient(url: string, key: string): SupabaseClient {
 
 function projectUrl(env: Env): string {
   const url = env.SUPABASE_URL?.trim();
-  if (!url) throw new SupabaseConfigurationError('SUPABASE_URL is required for auth.');
+  if (!url) {
+    throw new SupabaseConfigurationError('SUPABASE_URL is required for auth.');
+  }
   return url;
 }
 
 // Verifies user tokens with the publishable key.
 export function getAuthClient(env: Env = process.env): SupabaseClient {
   const key = env.SUPABASE_PUBLISHABLE_KEY?.trim();
-  if (!key) throw new SupabaseConfigurationError('SUPABASE_PUBLISHABLE_KEY is required for auth.');
+  if (!key) {
+    throw new SupabaseConfigurationError('SUPABASE_PUBLISHABLE_KEY is required for auth.');
+  }
   return cachedClient(projectUrl(env), key);
 }
 

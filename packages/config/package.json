@@ -9,7 +9,8 @@
     "./prettier": "./prettier.js"
   },
   "scripts": {
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0"
   },
   "devDependencies": {
     "eslint": "^9.39.1"

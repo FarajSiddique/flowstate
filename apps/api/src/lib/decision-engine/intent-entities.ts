@@ -7,7 +7,9 @@ function capitalize(text: string): string {
 // Jev selects an intent, not arbitrary strings. Keep source-text extraction local
 // and conservative; unsupported date expressions stay in the editable title.
 export function extractIntentEntities(intent: Intent, text: string): IntentEntities {
-  if (intent === 'UNKNOWN') return {};
+  if (intent === 'UNKNOWN') {
+    return {};
+  }
   let title = text.trim().replace(/\s+/g, ' ');
   if (intent === 'SEARCH') {
     const query = title.replace(/^(?:find|search for|where is)\s+(?:my\s+)?/i, '');
@@ -44,9 +46,13 @@ export function extractIntentEntities(intent: Intent, text: string): IntentEntit
   title = title.replace(/^(?:remind me to|schedule)\s+/i, '');
   if (intent === 'CREATE_EVENT') {
     const person = title.match(/^(?:meet(?: with)?\s+)(.+)$/i) ?? title.match(/\s+with\s+(.+)$/i);
-    if (person?.[1]) entities.person = capitalize(person[1]);
+    if (person?.[1]) {
+      entities.person = capitalize(person[1]);
+    }
   }
   // A bare action word has no useful title yet.
-  if (title && !/^(?:meet|schedule|remind me to)$/i.test(title)) entities.title = capitalize(title);
+  if (title && !/^(?:meet|schedule|remind me to)$/i.test(title)) {
+    entities.title = capitalize(title);
+  }
   return entities;
 }

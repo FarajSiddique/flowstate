@@ -72,6 +72,7 @@ curl -X POST http://localhost:3000/api/intent \
   -d '{"text":"meet Sarah tomorrow at 2"}'
 
 pnpm lint
+pnpm fix             # ESLint autofixes, then Prettier formatting
 pnpm typecheck
 pnpm test
 pnpm format:check
@@ -82,6 +83,15 @@ pnpm build           # Next.js production build + Expo web export
 `pnpm build` does not create native binaries. Native packaging can be added when
 needed. All workspaces are private, and shared TypeScript source is consumed
 directly by Next.js and Expo, so no separate package build/watch process is needed.
+
+Control statements always use braces and multiline bodies, even for one-statement
+guards. `pnpm lint` enforces braces; `pnpm fix` adds missing braces and formats them.
+Use `pnpm lint:fix` for ESLint fixes alone.
+
+In VS Code, open the repository root and install the recommended ESLint and Prettier
+extensions. The checked-in workspace settings apply ESLint fixes and Prettier formatting
+on explicit save, with ESLint configured for each workspace. Agent conventions live in
+`AGENTS.md`; `CLAUDE.md` imports them for Claude Code.
 
 ## Intent providers
 

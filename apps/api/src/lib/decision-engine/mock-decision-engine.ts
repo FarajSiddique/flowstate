@@ -15,7 +15,9 @@ function capitalize(text: string): string {
 function parseTime(hourText: string, minuteText?: string, period?: string): string | undefined {
   const hour = Number(hourText);
   const minute = Number(minuteText ?? '0');
-  if (hour < 1 || hour > 12 || minute > 59) return undefined;
+  if (hour < 1 || hour > 12 || minute > 59) {
+    return undefined;
+  }
   const isPm = period?.toLowerCase() === 'pm' || (!period && hour < 8);
   const hour24 = (hour % 12) + (isPm ? 12 : 0);
   return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -52,7 +54,9 @@ export class MockDecisionEngine implements DecisionEngine {
     const candidates = findActionCandidates(input, resolveReference(context));
     const selections = heuristicSelections(input, candidates);
     const action = buildIntentAction(decision.intent, input, candidates, selections);
-    if (!action) return decision;
+    if (!action) {
+      return decision;
+    }
     const highlights = buildHighlights(decision.intent, input, candidates, selections);
     return { ...decision, action, ...(highlights.length > 0 && { highlights }) };
   }

@@ -92,7 +92,9 @@ export function buildFieldQuestions(candidates: ActionCandidates): Record<string
   const questions: Record<string, ChoiceQuestion> = { ...ENUM_QUESTIONS };
   for (const field of Object.keys(SPAN_QUESTIONS) as SpanField[]) {
     const options = candidates[field] as Candidate<unknown>[];
-    if (!options.length) continue;
+    if (!options.length) {
+      continue;
+    }
     const { id, instructions, none } = SPAN_QUESTIONS[field];
     questions[id] = {
       type: 'choice',
@@ -116,9 +118,13 @@ const choiceAnswerSchema = z.object({
 
 function confidentChoice(answer: unknown, options: readonly string[]): string | undefined {
   const parsed = choiceAnswerSchema.safeParse(answer);
-  if (!parsed.success) return undefined;
+  if (!parsed.success) {
+    return undefined;
+  }
   const { choice, confidence, probabilities } = parsed.data;
-  if (choice === 'none' || !options.includes(choice)) return undefined;
+  if (choice === 'none' || !options.includes(choice)) {
+    return undefined;
+  }
   return (confidence ?? probabilities[choice] ?? 0) >= FIELD_CONFIDENCE ? choice : undefined;
 }
 

@@ -76,8 +76,9 @@ export class JevDecisionEngine implements DecisionEngine {
     const text = rawText.trim().replace(/\s+/g, ' ');
     const candidates = findActionCandidates(text, resolveReference(context));
     const allQuestions = { ...questions, ...buildFieldQuestions(candidates) };
-    if (process.env.NODE_ENV === 'development')
+    if (process.env.NODE_ENV === 'development') {
       console.info(`[intent] provider=jev questions=${Object.keys(allQuestions).length}`);
+    }
     const controller = new AbortController();
     let failure = 'network_error';
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -127,8 +128,9 @@ export class JevDecisionEngine implements DecisionEngine {
       // Bound both the network call and response body parsing, even if transport stalls.
       return await Promise.race([request(), timeout]);
     } catch {
-      if (process.env.NODE_ENV !== 'production')
+      if (process.env.NODE_ENV !== 'production') {
         console.warn(`[intent] provider=jev error=${failure}`);
+      }
       return intentResponseSchema.parse({ intent: 'UNKNOWN', confidence: 0, entities: {} });
     } finally {
       clearTimeout(timer);

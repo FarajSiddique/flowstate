@@ -113,10 +113,14 @@ function findDurations(text: string): Omit<Candidate<number>, 'id'>[] {
   const found: Omit<Candidate<number>, 'id'>[] = [];
   for (const match of text.matchAll(pattern)) {
     // "in 2 hours" is a start time, not a length.
-    if (/\bin\s+$/i.test(text.slice(0, match.index))) continue;
+    if (/\bin\s+$/i.test(text.slice(0, match.index))) {
+      continue;
+    }
     const amount = /^half/i.test(match[1]!) ? 0.5 : /^an?$/i.test(match[1]!) ? 1 : Number(match[1]);
     const minutes = Math.round(/^h/i.test(match[2]!) ? amount * 60 : amount);
-    if (minutes < 1 || minutes > 1440) continue;
+    if (minutes < 1 || minutes > 1440) {
+      continue;
+    }
     found.push({ ...trimSpan(text, match.index, match.index + match[0].length), value: minutes });
   }
   return found;
@@ -140,13 +144,17 @@ function findWhen(
       result.index + result.text.length,
     );
     // chrono reads "for 45 min" as "45 minutes from now".
-    if (durations.some((duration) => overlaps(span, duration))) continue;
+    if (durations.some((duration) => overlaps(span, duration))) {
+      continue;
+    }
     const { start } = result;
     let time: string | null = null;
     if (start.isCertain('hour')) {
       let hour = start.get('hour') ?? 0;
       // Preserve the existing convention: unqualified hours 1–7 mean PM.
-      if (!start.isCertain('meridiem') && hour >= 1 && hour <= 7) hour += 12;
+      if (!start.isCertain('meridiem') && hour >= 1 && hour <= 7) {
+        hour += 12;
+      }
       time = `${pad(hour)}:${pad(start.get('minute') ?? 0)}`;
     }
     const date = isoDate(start.get('year')!, start.get('month')!, start.get('day')!);
@@ -159,7 +167,11 @@ function phraseAfter(text: string, from: number, blocked: { start: number; end: 
   const rest = text.slice(from);
   const stop = rest.search(PHRASE_STOP);
   let end = from + (stop === -1 ? rest.length : stop);
-  for (const span of blocked) if (span.start >= from && span.start < end) end = span.start;
+  for (const span of blocked) {
+    if (span.start >= from && span.start < end) {
+      end = span.start;
+    }
+  }
   const phrase = text.slice(from, end).trim();
   return phrase ? { phrase, end: from + text.slice(from, end).trimEnd().length } : null;
 }
@@ -177,9 +189,13 @@ function findLocations(
   const found: Omit<Candidate<string>, 'id'>[] = [];
   for (const match of text.matchAll(pattern)) {
     const start = match.index;
-    if (blocked.some((span) => start >= span.start && start < span.end)) continue;
+    if (blocked.some((span) => start >= span.start && start < span.end)) {
+      continue;
+    }
     const phrase = phraseAfter(text, start + match[0].length, blocked);
-    if (!phrase || phrase.phrase.split(/\s+/).length > 6) continue;
+    if (!phrase || phrase.phrase.split(/\s+/).length > 6) {
+      continue;
+    }
     found.push({
       start,
       end: phrase.end,
@@ -198,12 +214,16 @@ function findAttendees(
   const found: Omit<Candidate<string[]>, 'id'>[] = [];
   for (const match of text.matchAll(pattern)) {
     const phrase = phraseAfter(text, match.index + match[0].length, blocked);
-    if (!phrase) continue;
+    if (!phrase) {
+      continue;
+    }
     const names = phrase.phrase
       .split(/\s*(?:,|&|\band\b)\s*/i)
       .filter((name) => name && name.split(/\s+/).length <= 3)
       .map(capitalizeWords);
-    if (!names.length) continue;
+    if (!names.length) {
+      continue;
+    }
     const start = match.index + match[0].length;
     found.push({ start, end: phrase.end, text: text.slice(start, phrase.end), value: names });
   }
@@ -244,7 +264,9 @@ function findRanges(
   }
   // Single dates ("on Friday") become one-day ranges unless a relative range covers them.
   for (const candidate of when) {
-    if (found.some((range) => overlaps(range, candidate))) continue;
+    if (found.some((range) => overlaps(range, candidate))) {
+      continue;
+    }
     const { date } = candidate.value;
     found.push({ ...candidate, value: { from: date, to: date } });
   }
@@ -262,13 +284,17 @@ function findNoteSplits(text: string): Omit<Candidate<{ title: string; body: str
   const found: Omit<Candidate<{ title: string; body: string }>, 'id'>[] = [];
   for (const separator of [/:\s+/, /\s+[-–—]\s+/, /[.!?]\s+/, /\n+/]) {
     const match = base.match(separator);
-    if (match?.index === undefined) continue;
+    if (match?.index === undefined) {
+      continue;
+    }
     const title = base
       .slice(0, match.index)
       .replace(/[.!?]$/, '')
       .trim();
     const body = base.slice(match.index + match[0].length).trim();
-    if (!title || !body || found.some((split) => split.value.title === title)) continue;
+    if (!title || !body || found.some((split) => split.value.title === title)) {
+      continue;
+    }
     const start = offset + match.index;
     found.push({ start, end: start + match[0].length, text: match[0], value: { title, body } });
   }

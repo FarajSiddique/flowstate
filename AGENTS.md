@@ -21,11 +21,17 @@ Use Node.js 24 (`nvm use`) and pnpm 10.34.5. Run commands from the root:
 - `pnpm dev:web`: launch Expo's browser preview.
 - `pnpm build`: build Next.js and export Expo web; does not build native binaries.
 - `pnpm lint` / `pnpm typecheck`: check all applicable workspaces.
+- `pnpm lint:fix`: apply ESLint fixes across the workspaces.
+- `pnpm fix`: apply ESLint fixes, then Prettier formatting.
 - `pnpm format` / `pnpm format:check`: apply or verify formatting.
 
 ## Coding Style & Naming Conventions
 
 Use strict TypeScript, two-space indentation, single quotes, semicolons, and trailing commas. Prettier targets 100-character lines; ESLint uses framework presets. Use PascalCase for components/types, camelCase for functions, and kebab-case helper filenames such as `query-provider.tsx`. Preserve framework filenames such as `_layout.tsx` and `route.ts`. Infer shared contracts from Zod. Keep server state in TanStack Query and local UI state in Zustand.
+
+Always use braces and multiline bodies for `if`, `else`, `for`, `while`, and `do` statements, including one-statement guards. ESLint's `curly: ['error', 'all']` requires braces; Prettier formats the blocks. Do not disable the rule to keep a single-line statement.
+
+After code changes, run `pnpm fix`, inspect the diff for unrelated changes, then run `pnpm lint` and `pnpm format:check` before handing off. Keep formatting-only changes separate from behavioral edits when practical. These instructions apply to Codex and Claude Code; `CLAUDE.md` imports this file.
 
 ## Testing Guidelines
 

@@ -19,7 +19,9 @@ export function OPTIONS() {
 
 export async function POST(request: Request) {
   const user = await verifyRequest(request, headers);
-  if (user instanceof Response) return user;
+  if (user instanceof Response) {
+    return user;
+  }
 
   let body: unknown;
 

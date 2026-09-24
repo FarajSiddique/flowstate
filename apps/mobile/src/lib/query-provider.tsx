@@ -8,7 +8,9 @@ export function QueryProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
+    if (Platform.OS === 'web') {
+      return;
+    }
     const subscription = AppState.addEventListener('change', (state) => {
       focusManager.setFocused(state === 'active');
     });

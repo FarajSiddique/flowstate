@@ -7,5 +7,6 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
   prettier,
+  { rules: { curly: ['error', 'all'] } },
   globalIgnores(['.next/**', 'next-env.d.ts']),
 ]);

@@ -31,7 +31,9 @@ export async function verifyRequest(
   env: Env = process.env,
 ): Promise<AuthUser | Response> {
   const token = bearerPattern.exec(request.headers.get('authorization')?.trim() ?? '')?.[1];
-  if (!token) return unauthorized(headers);
+  if (!token) {
+    return unauthorized(headers);
+  }
 
   try {
     // Verifies the signature locally against the project's cached JWKS, and checks expiry.

@@ -71,7 +71,9 @@ export default function HomeScreen() {
           <IntentPreview
             decision={decision}
             onContinue={() => {
-              if (!decision) return;
+              if (!decision) {
+                return;
+              }
               Keyboard.dismiss();
               setSelectedDecision(decision);
             }}

@@ -16,13 +16,17 @@ const apiUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000').repl
 export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
-  if (signal?.aborted) controller.abort();
+  if (signal?.aborted) {
+    controller.abort();
+  }
   signal?.addEventListener('abort', cancel);
   const timeout = setTimeout(cancel, 5_000);
 
   try {
     const response = await fetch(`${apiUrl}/api/health`, { signal: controller.signal });
-    if (!response.ok) throw new Error(`Health request failed: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Health request failed: ${response.status}`);
+    }
     const body: unknown = await response.json();
     return healthResponseSchema.parse(body);
   } finally {
@@ -48,16 +52,22 @@ async function accessToken(forceRefresh = false): Promise<string | null> {
 async function authorizedFetch(path: string, init: RequestInit): Promise<Response> {
   const send = async (forceRefresh: boolean) => {
     const token = await accessToken(forceRefresh);
-    if (!token) throw new UnauthorizedError('Not signed in');
+    if (!token) {
+      throw new UnauthorizedError('Not signed in');
+    }
     const headers = new Headers(init.headers);
     headers.set('Authorization', `Bearer ${token}`);
     return fetch(`${apiUrl}${path}`, { ...init, headers });
   };
 
   const response = await send(false);
-  if (response.status !== 401) return response;
+  if (response.status !== 401) {
+    return response;
+  }
   const retried = await send(true);
-  if (retried.status === 401) throw new UnauthorizedError('Session rejected by the API');
+  if (retried.status === 401) {
+    throw new UnauthorizedError('Session rejected by the API');
+  }
   return retried;
 }
 
@@ -79,7 +89,9 @@ export async function classifyIntent(
 ): Promise<IntentDecision> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
-  if (signal?.aborted) controller.abort();
+  if (signal?.aborted) {
+    controller.abort();
+  }
   signal?.addEventListener('abort', cancel);
   const timeout = setTimeout(cancel, 5_000);
 
@@ -92,7 +104,9 @@ export async function classifyIntent(
       ),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Intent request failed: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Intent request failed: ${response.status}`);
+    }
     const body: unknown = await response.json();
     return intentResponseSchema.parse(body);
   } finally {
@@ -110,7 +124,9 @@ export async function deleteAccount(): Promise<void> {
       method: 'DELETE',
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Account deletion failed: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Account deletion failed: ${response.status}`);
+    }
   } finally {
     clearTimeout(timeout);
   }

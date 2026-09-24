@@ -95,7 +95,9 @@ export function TextButton({
 }
 
 export function FormError({ message }: { message: string | null }) {
-  if (!message) return null;
+  if (!message) {
+    return null;
+  }
   return (
     <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.error}>
       {message}
@@ -104,7 +106,9 @@ export function FormError({ message }: { message: string | null }) {
 }
 
 export function FormNotice({ message }: { message: string | null }) {
-  if (!message) return null;
+  if (!message) {
+    return null;
+  }
   return (
     <Text accessibilityLiveRegion="polite" style={styles.notice}>
       {message}

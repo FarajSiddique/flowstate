@@ -81,13 +81,15 @@ function initialFields({ action, entities }: IntentDecision): FormFields {
         date: when ? displayLocalDate(when.date) : '',
         time: displayTime(when?.time ?? undefined) ?? '',
       });
-      if (action.kind === 'CREATE_TASK') fields.priority = action.priority;
-      else
+      if (action.kind === 'CREATE_TASK') {
+        fields.priority = action.priority;
+      } else {
         Object.assign(fields, {
           duration: displayDuration(action.durationMin),
           location: action.location ?? '',
           attendees: action.attendees.join(', '),
         });
+      }
       break;
     }
     case 'CREATE_NOTE':

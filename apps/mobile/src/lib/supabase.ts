@@ -26,9 +26,14 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
 
 // Refresh tokens only while the app is in the foreground. Registered once, at import.
 if (Platform.OS !== 'web') {
-  if (AppState.currentState === 'active') void supabase.auth.startAutoRefresh();
+  if (AppState.currentState === 'active') {
+    void supabase.auth.startAutoRefresh();
+  }
   AppState.addEventListener('change', (state) => {
-    if (state === 'active') void supabase.auth.startAutoRefresh();
-    else void supabase.auth.stopAutoRefresh();
+    if (state === 'active') {
+      void supabase.auth.startAutoRefresh();
+    } else {
+      void supabase.auth.stopAutoRefresh();
+    }
   });
 }

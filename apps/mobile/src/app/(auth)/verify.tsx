@@ -27,14 +27,18 @@ export default function VerifyScreen() {
   const [resendIn, setResendIn] = useState(RESEND_AFTER_S);
 
   useEffect(() => {
-    if (resendIn <= 0) return;
+    if (resendIn <= 0) {
+      return;
+    }
     const timer = setTimeout(() => setResendIn((seconds) => seconds - 1), 1_000);
     return () => clearTimeout(timer);
   }, [resendIn]);
 
   // A successful verification updates the session, and the root layout swaps to the app.
   const verify = async (value: string) => {
-    if (verifying) return;
+    if (verifying) {
+      return;
+    }
     setVerifying(true);
     setError(null);
     setNotice(null);
@@ -49,7 +53,9 @@ export default function VerifyScreen() {
   const onChangeCode = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, CODE_LENGTH);
     setCode(digits);
-    if (digits.length === CODE_LENGTH) void verify(digits);
+    if (digits.length === CODE_LENGTH) {
+      void verify(digits);
+    }
   };
 
   const resend = async () => {
@@ -69,7 +75,9 @@ export default function VerifyScreen() {
   };
 
   // Reached without an address (e.g. a restored route); start over from sign-in.
-  if (!email) return <Redirect href="/sign-in" />;
+  if (!email) {
+    return <Redirect href="/sign-in" />;
+  }
 
   return (
     <AuthScreen title="Check your email" subtitle={`Enter the 6-digit code we sent to ${email}.`}>

@@ -10,6 +10,7 @@
     "web": "expo start --web --port 8081",
     "build": "expo export --platform web",
     "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix --max-warnings 0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

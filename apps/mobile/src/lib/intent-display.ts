@@ -5,10 +5,14 @@ export function displayDate(date?: string): string | null {
 }
 
 export function displayTime(time?: string): string | null {
-  if (!time) return null;
+  if (!time) {
+    return null;
+  }
   const [hourText, minute = '00'] = time.split(':');
   const hour = Number(hourText);
-  if (!Number.isInteger(hour) || hour < 0 || hour > 23) return time;
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+    return time;
+  }
   return `${hour % 12 || 12}:${minute} ${hour < 12 ? 'AM' : 'PM'}`;
 }
 
@@ -28,7 +32,9 @@ export function displayLocalDate(date: string, withWeekday = true): string {
 }
 
 export function displayLocalDateTime(value: LocalDateTime | null): string | null {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
   return [displayLocalDate(value.date), displayTime(value.time ?? undefined)]
     .filter(Boolean)
     .join(' · ');
@@ -37,13 +43,19 @@ export function displayLocalDateTime(value: LocalDateTime | null): string | null
 export function displayDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  if (!hours) return `${rest} min`;
+  if (!hours) {
+    return `${rest} min`;
+  }
   return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
 }
 
 export function displayRange(range: DateRange | null): string | null {
-  if (!range) return null;
-  if (range.from === range.to) return displayLocalDate(range.from);
+  if (!range) {
+    return null;
+  }
+  if (range.from === range.to) {
+    return displayLocalDate(range.from);
+  }
   return `${displayLocalDate(range.from, false)} – ${displayLocalDate(range.to, false)}`;
 }
 

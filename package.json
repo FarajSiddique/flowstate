@@ -12,6 +12,8 @@
     "dev:web": "pnpm --filter @nexui/mobile web",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:fix": "pnpm -r --if-present run lint:fix",
+    "fix": "pnpm lint:fix && pnpm format",
     "typecheck": "turbo run typecheck",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "format": "prettier --write .",

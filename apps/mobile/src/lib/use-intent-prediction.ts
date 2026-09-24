@@ -33,31 +33,43 @@ export function useIntentPrediction() {
 
   useEffect(() => {
     const input = text.trim();
-    if (input.length < MIN_INPUT_LENGTH) return;
+    if (input.length < MIN_INPUT_LENGTH) {
+      return;
+    }
 
     const requestGeneration = generation.current;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      if (requestGeneration !== generation.current) return;
+      if (requestGeneration !== generation.current) {
+        return;
+      }
       activeController.current = controller;
       setPrediction({ text, decision: null, isPredicting: true, error: null });
       void classifyIntent({ text: input }, controller.signal)
         .then((decision) => {
-          if (requestGeneration !== generation.current) return;
+          if (requestGeneration !== generation.current) {
+            return;
+          }
           setPrediction({ text, decision, isPredicting: false, error: null });
         })
         .catch((error: unknown) => {
-          if (requestGeneration !== generation.current || controller.signal.aborted) return;
+          if (requestGeneration !== generation.current || controller.signal.aborted) {
+            return;
+          }
           setPrediction({
             text,
             decision: null,
             isPredicting: false,
             error: 'Could not predict intent. Check your connection and try again.',
           });
-          if (__DEV__) console.warn('Intent prediction failed', error);
+          if (__DEV__) {
+            console.warn('Intent prediction failed', error);
+          }
         })
         .finally(() => {
-          if (activeController.current === controller) activeController.current = null;
+          if (activeController.current === controller) {
+            activeController.current = null;
+          }
         });
     }, DEBOUNCE_MS);
 

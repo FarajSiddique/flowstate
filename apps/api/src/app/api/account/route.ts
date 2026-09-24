@@ -15,11 +15,15 @@ export function OPTIONS() {
 // Permanently deletes the signed-in user's account (required by App Store rules).
 export async function DELETE(request: Request) {
   const user = await verifyRequest(request, headers);
-  if (user instanceof Response) return user;
+  if (user instanceof Response) {
+    return user;
+  }
 
   try {
     const { error } = await getAdminClient().auth.admin.deleteUser(user.userId);
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
     return new Response(null, { status: 204, headers });
   } catch (error) {
     console.error(

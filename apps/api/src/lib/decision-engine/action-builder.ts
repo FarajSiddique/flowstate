@@ -69,7 +69,9 @@ export function buildIntentAction(
     case 'CREATE_TASK': {
       const priority = selections.priority ?? 'normal';
       let title = withoutSpans(input, [when]);
-      if (priority !== 'normal') title = title.replace(PRIORITY_CUE, '').trim();
+      if (priority !== 'normal') {
+        title = title.replace(PRIORITY_CUE, '').trim();
+      }
       return {
         kind: intent,
         title: capitalize(title.replace(TASK_PREFIX, '')),
@@ -126,7 +128,7 @@ export function buildHighlights(
       chosen.push(['when', pick(candidates.when, selections.when)]);
       const priority = selections.priority ?? 'normal';
       const cue = priority !== 'normal' && input.match(PRIORITY_WORDS);
-      if (cue && cue.index !== undefined)
+      if (cue && cue.index !== undefined) {
         chosen.push([
           'priority',
           {
@@ -137,6 +139,7 @@ export function buildHighlights(
             value: 0,
           },
         ]);
+      }
       break;
     }
     case 'CREATE_EVENT':

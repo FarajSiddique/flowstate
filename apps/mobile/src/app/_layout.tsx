@@ -22,9 +22,13 @@ export default function RootLayout() {
   });
   const sessionStatus = useSessionStore((state) => state.status);
   // A failed font load falls back to system faces rather than blocking the app.
-  if (!fontsLoaded && !fontError) return null;
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
   // Wait for the stored session so a signed-in user never sees the sign-in screen flash.
-  if (sessionStatus === 'loading') return null;
+  if (sessionStatus === 'loading') {
+    return null;
+  }
   const signedIn = sessionStatus === 'signedIn';
 
   return (

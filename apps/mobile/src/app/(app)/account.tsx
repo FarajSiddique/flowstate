@@ -36,7 +36,9 @@ export default function AccountScreen() {
       await deleteAccount();
       await clearDeletedAccount();
     } catch (caught) {
-      if (__DEV__) console.warn('Account deletion failed', caught);
+      if (__DEV__) {
+        console.warn('Account deletion failed', caught);
+      }
       setError('Could not delete your account. Check your connection and try again.');
       setPending(null);
     }

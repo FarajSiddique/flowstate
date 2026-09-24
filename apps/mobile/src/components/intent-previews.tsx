@@ -37,7 +37,7 @@ const CARD_COPY: Record<
 
 // Each draft prefers the typed action and falls back to legacy entities.
 function eventDraft({ action, entities }: IntentDecision): Draft {
-  if (action?.kind !== 'CREATE_EVENT')
+  if (action?.kind !== 'CREATE_EVENT') {
     return {
       title: entities.title,
       rows: [
@@ -50,6 +50,7 @@ function eventDraft({ action, entities }: IntentDecision): Draft {
         { label: 'With', value: entities.person },
       ],
     };
+  }
   return {
     title: action.title || entities.title,
     rows: [
@@ -66,8 +67,9 @@ function eventDraft({ action, entities }: IntentDecision): Draft {
 }
 
 function taskDraft({ action, entities }: IntentDecision): Draft {
-  if (action?.kind !== 'CREATE_TASK')
+  if (action?.kind !== 'CREATE_TASK') {
     return { title: entities.title, rows: [{ label: 'Due', value: displayDate(entities.date) }] };
+  }
   return {
     title: action.title || entities.title,
     rows: [
@@ -122,7 +124,9 @@ function PreviewCard({
   onContinue: () => void;
 }) {
   const { title, rows } = DRAFTS[intent](decision);
-  if (!title) return null;
+  if (!title) {
+    return null;
+  }
   const copy = CARD_COPY[intent];
   const marked = new Set(decision.highlights?.map((span) => span.field));
   const tentative = emphasis === 'medium';
@@ -184,9 +188,13 @@ export function IntentPreview({
   decision: IntentDecision | null;
   onContinue: () => void;
 }) {
-  if (!decision || decision.intent === 'UNKNOWN') return null;
+  if (!decision || decision.intent === 'UNKNOWN') {
+    return null;
+  }
   const emphasis = previewEmphasis(decision);
-  if (emphasis === 'none') return null;
+  if (emphasis === 'none') {
+    return null;
+  }
   return (
     <PreviewCard
       decision={decision}
