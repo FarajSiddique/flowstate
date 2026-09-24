@@ -4,12 +4,13 @@ import {
   DecisionEngineConfigurationError,
   getDecisionEngine,
 } from '../../../lib/decision-engine/index.ts';
+import { verifyRequest } from '../../../lib/supabase/verify-request.ts';
 
 const headers = {
   'Cache-Control': 'no-store',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
 };
 
 export function OPTIONS() {
@@ -17,6 +18,9 @@ export function OPTIONS() {
 }
 
 export async function POST(request: Request) {
+  const user = await verifyRequest(request, headers);
+  if (user instanceof Response) return user;
+
   let body: unknown;
 
   try {

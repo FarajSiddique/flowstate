@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'expo-router';
 import type { IntentDecision } from '@nexui/types';
 import { useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -38,14 +39,19 @@ export default function HomeScreen() {
             <Text accessibilityRole="header" style={styles.brand}>
               nexui
             </Text>
-            <View style={styles.status}>
-              <View style={[styles.dot, { backgroundColor: statusColor }]} />
-              <Text
-                accessibilityLiveRegion="polite"
-                style={[styles.statusText, { color: statusColor }]}
-              >
-                {status}
-              </Text>
+            <View style={styles.topActions}>
+              <View style={styles.status}>
+                <View style={[styles.dot, { backgroundColor: statusColor }]} />
+                <Text
+                  accessibilityLiveRegion="polite"
+                  style={[styles.statusText, { color: statusColor }]}
+                >
+                  {status}
+                </Text>
+              </View>
+              <Link href="/account" accessibilityRole="button" style={styles.accountLink}>
+                Account
+              </Link>
             </View>
           </View>
           <Text style={styles.subtitle}>Type a plan. Nexui marks the details it picked up.</Text>
@@ -110,7 +116,15 @@ const styles = StyleSheet.create({
   content: { width: '100%', maxWidth: 440, alignSelf: 'center' },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   brand: { fontFamily: fonts.display, fontSize: 30, letterSpacing: -1, color: colors.ink },
+  topActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  accountLink: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 14,
+    color: colors.ink,
+    textDecorationLine: 'underline',
+    paddingVertical: 6,
+  },
   dot: { width: 7, height: 7, borderRadius: 4 },
   statusText: { fontFamily: fonts.body, fontSize: 13 },
   subtitle: {

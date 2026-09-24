@@ -3,14 +3,16 @@
 A small, typed foundation for an AI-native productivity app. The first product
 slice proves **natural-language input → typed intent → deterministic mobile UI**.
 Intent classification can use either a local mock or Jev through Vercel AI Gateway.
-There is no auth or database functionality.
+Users sign in with Supabase Auth (emailed 6-digit code or native Google); there is
+no database functionality yet. Setup steps are in `docs/specs/auth.md`.
 
 ## Requirements
 
 - Node.js 24 LTS recommended (`nvm use`); minimum 22.13.
 - pnpm 10.34.5: `npm install --global pnpm@10.34.5`.
-- Expo Go compatible with SDK 57 for device previews, or a configured native
-  development environment. A browser is enough to verify the starter end to end.
+- An EAS development build on the iOS Simulator or an Android device. Native Google
+  sign-in doesn't run in Expo Go (see `docs/specs/auth.md` A5). The web preview
+  supports email-code sign-in only.
 
 ## Start development
 
@@ -151,13 +153,9 @@ computer's firewall. The API binds to `0.0.0.0` for LAN access. `localhost` on a
 phone refers to the phone itself. Expo tunneling does not tunnel the API; an API
 URL reachable from the device is still required. Restart Expo after changing env.
 
-The localhost default works without env files. Supabase values may remain blank:
-
-```dotenv
-# apps/api/.env.local
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-```
+Supabase and Google values are required for sign-in; the `.env.example` files list
+them. The mobile app gets only the publishable key. `SUPABASE_SECRET_KEY` lives only
+in `apps/api/.env.local`, where account deletion uses it.
 
 `EXPO_PUBLIC_*` is bundled into the app, and `NEXT_PUBLIC_*` is public configuration.
 Never use either prefix for secrets. Future server credentials belong only in the
@@ -165,24 +163,25 @@ API's environment, without a public prefix. Environment files are ignored by git
 the `.env.example` files are tracked. Turbo passes Gateway configuration only to the API dev task. Do not add Gateway
 keys to Expo configuration or any public environment variable.
 
-The credential-free health and intent endpoints allow cross-origin requests for
-Expo web. The intent endpoint handles JSON preflight requests. Choose explicit
-origins and auth rules when the API handles private user data.
+`GET /api/health` is public. `POST /api/intent` and `DELETE /api/account` require
+`Authorization: Bearer <Supabase access token>` and return 401 without one. They allow
+cross-origin requests for Expo web, and no cookies are involved.
 
 ## Structure and extension points
 
 ```text
 apps/
   mobile/
-    src/app/                  # Expo Router Home and root layout
+    src/app/                  # Root layout (auth guard), (auth) and (app) route groups
     src/components/           # Intent previews and confirmation form
     src/lib/                  # Validated API client, prediction hook, thresholds
-    src/stores/               # Trivial Zustand example
+    src/stores/               # Zustand stores, including the auth session mirror
   api/
     src/app/api/health/        # GET /api/health
-    src/app/api/intent/        # POST /api/intent
+    src/app/api/intent/        # POST /api/intent (signed-in users)
+    src/app/api/account/       # DELETE /api/account (deletes the signed-in user)
     src/lib/decision-engine/  # Provider factory, mock, Jev, entity parser
-    src/lib/supabase/         # Future server client/data access
+    src/lib/supabase/         # Server clients and Bearer-token verification
 packages/
   types/src/                  # Shared Zod schemas and inferred contracts
   config/                     # Strict TS, shared ESLint, Prettier
@@ -192,9 +191,9 @@ tests/                         # Node tests for contracts, classifier, threshold
 - Add future provider implementations in `apps/api/src/lib/decision-engine/` and
   register them in `getDecisionEngine()` there. The route and mobile client
   depend only on the shared contract; provider secrets stay server-side.
-- Put future Supabase client factories and data access in
-  `apps/api/src/lib/supabase/`. `@supabase/supabase-js` is installed in the API, but
-  no client is constructed and no credentials are required today.
+- Protect a new API route with `verifyRequest()` from
+  `apps/api/src/lib/supabase/verify-request.ts`, which returns the user or a ready
+  401 response. Keep Supabase clients and data access in `apps/api/src/lib/supabase/`.
 - Add shared request/response schemas in `packages/types`. Infer TypeScript types
   from Zod so runtime validation and compile-time contracts remain aligned. Keep
   this package independent of React, server code, and secrets.

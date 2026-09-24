@@ -10,6 +10,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '@/lib/query-provider';
 import { colors } from '@/lib/theme';
+import { useSessionStore } from '@/stores/use-session-store';
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
@@ -19,8 +20,12 @@ export default function RootLayout() {
     BricolageGrotesque_700Bold,
     BricolageGrotesque_800ExtraBold,
   });
+  const sessionStatus = useSessionStore((state) => state.status);
   // A failed font load falls back to system faces rather than blocking the app.
   if (!fontsLoaded && !fontError) return null;
+  // Wait for the stored session so a signed-in user never sees the sign-in screen flash.
+  if (sessionStatus === 'loading') return null;
+  const signedIn = sessionStatus === 'signedIn';
 
   return (
     <SafeAreaProvider>
@@ -28,7 +33,14 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}
-        />
+        >
+          <Stack.Protected guard={signedIn}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          <Stack.Protected guard={!signedIn}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+        </Stack>
       </QueryProvider>
     </SafeAreaProvider>
   );

@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { POST } from '../apps/api/src/app/api/intent/route.ts';
+import { OPTIONS, POST } from '../apps/api/src/app/api/intent/route.ts';
+import { mockSupabaseAuth, signToken } from './support/supabase-auth.mjs';
 
-function request(body) {
-  return new Request('http://localhost/api/intent', { method: 'POST', body });
+function request(body, token = signToken()) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  return new Request('http://localhost/api/intent', { method: 'POST', body, headers });
 }
 
-function configure(t, values = {}) {
+function configure(t, values = {}, upstream) {
   for (const key of ['AI_PROVIDER', 'AI_GATEWAY_API_KEY', 'NEXUI_INTENT_MODEL', 'NODE_ENV']) {
     const previous = process.env[key];
     if (values[key] === undefined) delete process.env[key];
@@ -19,7 +21,23 @@ function configure(t, values = {}) {
   }
   t.mock.method(console, 'error', () => {});
   t.mock.method(console, 'warn', () => {});
+  return mockSupabaseAuth(t, upstream);
 }
+
+test('route requires a valid access token before reading the request', async (t) => {
+  const upstream = configure(t, { AI_PROVIDER: 'mock' });
+  for (const token of [null, signToken({}, { expiresIn: -60 })]) {
+    const response = await POST(request(JSON.stringify({ text: 'meet Sarah' }), token));
+    assert.equal(response.status, 401);
+    assert.equal(response.headers.get('access-control-allow-origin'), '*');
+  }
+  assert.equal(upstream.mock.callCount(), 0);
+});
+
+test('preflight allows the Authorization header', () => {
+  const allowed = OPTIONS().headers.get('access-control-allow-headers');
+  assert.match(allowed, /Authorization/);
+});
 
 test('route rejects malformed requests before invoking any provider', async (t) => {
   configure(t, { AI_PROVIDER: 'invalid' });
@@ -40,14 +58,13 @@ test('route keeps mock behavior and reports classification timing without input'
 });
 
 test('route selects Jev and safely returns UNKNOWN when Gateway rejects the call', async (t) => {
-  configure(t, {
-    AI_PROVIDER: 'jev',
-    AI_GATEWAY_API_KEY: 'test-secret',
-    NEXUI_INTENT_MODEL: 'typesafe-ai/jev',
-  });
-  const gateway = t.mock.method(
-    globalThis,
-    'fetch',
+  const gateway = configure(
+    t,
+    {
+      AI_PROVIDER: 'jev',
+      AI_GATEWAY_API_KEY: 'test-secret',
+      NEXUI_INTENT_MODEL: 'typesafe-ai/jev',
+    },
     async () => new Response('secret upstream details', { status: 503 }),
   );
   const response = await POST(request(JSON.stringify({ text: 'meet Sarah tomorrow at 2' })));

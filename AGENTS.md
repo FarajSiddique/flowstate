@@ -37,4 +37,4 @@ History currently contains only `init mono repo`; no formal commit convention ex
 
 ## Security & Configuration
 
-Copy app-local `.env.example` files; never commit secrets. Both `EXPO_PUBLIC_*` and `NEXT_PUBLIC_*` are public. Physical devices need the computer's LAN IP in `EXPO_PUBLIC_API_URL`. Supabase credentials remain optional until integration is implemented.
+Copy app-local `.env.example` files; never commit secrets. Both `EXPO_PUBLIC_*` and `NEXT_PUBLIC_*` are public. Physical devices need the computer's LAN IP in `EXPO_PUBLIC_API_URL`. Supabase and Google credentials are required for sign-in (see `docs/specs/auth.md`). Only the publishable key goes in the mobile app; `SUPABASE_SECRET_KEY` stays in the API.

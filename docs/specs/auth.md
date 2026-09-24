@@ -35,7 +35,7 @@ Record every 📋 value; A9 collects them.
 
 ### A1. Pick your permanent app identifiers
 
-- 📋 **iOS bundle ID** and **Android package name**, e.g. `ai.nexui.app`. Use the same string on both platforms. It becomes permanent once registered.
+- 📋 **iOS bundle ID** and **Android package name**, e.g. `ai.nexui.app`. Use the same string on both platforms. It becomes permanent once registered. Reverse-DNS IDs don't require owning the domain.
 - Keep the URL scheme `nexui`.
 
 ### A2. Supabase projects
@@ -54,14 +54,25 @@ Record every 📋 value; A9 collects them.
 
 ### A3. Email OTP (code) setup
 
-1. **Domain:** you need a domain you control to send from. Supabase's built-in email sender is unusable for real users.
-2. **SMTP provider:** set up Resend, Postmark or SES, and verify the domain with SPF, DKIM and DMARC DNS records.
-   - 📋 SMTP host, port, username, password, and sender address
-3. In Supabase **Authentication → Emails → SMTP Settings**, enable custom SMTP. Do this in both projects.
-4. In **Templates**, edit **Magic Link** and **Confirm signup** so each shows `{{ .Token }}` instead of `{{ .ConfirmationURL }}`, e.g.
+**No domain yet (decided 2026-09-23).** v1 sends from a provider's sandbox sender. The trade-off is that email codes reach only you, so other testers sign in with Google until a domain is bought.
+
+1. **SMTP provider: Resend sandbox.** Create a Resend account with the email address you'll test with, then create an API key. You don't need to verify a domain or add DNS records.
+   - 📋 Host `smtp.resend.com`, port `465`, username `resend`, password = the API key
+   - 📋 Sender address `onboarding@resend.dev`, sender name `Nexui`
+   - Limitation: the sandbox sender only delivers to the email address that owns the Resend account.
+   - To test with several addresses, use a **Mailtrap Email Sandbox** inbox instead (`sandbox.smtp.mailtrap.io`, port `2525`, credentials from the inbox's SMTP settings). Mailtrap accepts mail to any address and shows it in its web inbox instead of delivering it.
+   - Don't use Supabase's built-in sender. It only sends to members of your Supabase org and allows about 2 emails an hour.
+2. In Supabase **Authentication → Emails → SMTP Settings**, enable custom SMTP with those values. Only `nexui-dev` needs it now.
+3. In **Templates**, edit **Magic Link** and **Confirm signup** so each shows `{{ .Token }}` instead of `{{ .ConfirmationURL }}`, e.g.
    `<h2>Your Nexui code</h2><p>{{ .Token }}</p><p>Expires in 10 minutes.</p>`
-5. In **Rate Limits**, raise the email limits now that you use your own SMTP.
-6. Set the OTP expiry (e.g. 600 s) and keep 6 digits.
+4. In **Rate Limits**, raise the email limits now that you use your own SMTP.
+5. In **Sign In / Providers → Email**, set **Email OTP Length** to `6` and the expiry to e.g. 600 s. New projects default to 8 digits, which the app rejects.
+
+**When you buy a domain (before external email testers or launch):**
+
+- Verify the domain in Resend (SPF, DKIM and DMARC records).
+- Change the sender to e.g. `auth@<domain>` in both Supabase projects and configure SMTP in `nexui-prod`.
+- The code doesn't change, because SMTP lives entirely in Supabase.
 
 ### A4. Google Cloud: Google sign-in (native, iOS and Android)
 
@@ -70,7 +81,8 @@ Record every 📋 value; A9 collects them.
    - User type: External.
    - Scopes: `openid`, `email` and `profile` only.
    - Add yourself as a test user.
-   - Privacy policy and homepage URLs are required. **Publish to Production** before launch.
+   - Leave the homepage, privacy policy and authorized domain fields blank. The app stays in **Testing** mode, which allows up to 100 test users.
+   - **Publish to Production** waits for a domain, because Google requires those URLs on a domain you verify. `*.vercel.app` can't be verified.
 3. **Clients → Create client**:
    - **Web application.** Supabase and the mobile `webClientId` use it. 📋 Client ID and 📋 secret.
    - **iOS**, with your bundle ID. This works without Apple enrollment. 📋 Client ID and 📋 reversed client ID.
@@ -106,14 +118,14 @@ Record every 📋 value; A9 collects them.
 
 ### A7. Legal and store prerequisites
 
-- Privacy policy URL and terms URL. The Google consent screen needs them now, and App Store Connect needs them later.
+- Privacy policy URL and terms URL. These are deferred until you buy a domain. Google needs them to publish the consent screen, and App Store Connect needs them to submit. Internal testing works without them.
 - Play Console: create the app when you're near release, then add the Play App Signing SHA-1 Android client.
 - App Store Connect: deferred to Part C.
 
 ### A8. Checks before starting on code
 
-- Use Supabase **Auth → Users → "Send magic link"** to email yourself. It should arrive from your domain and show a 6-digit code.
-- Email and Google are enabled in both projects. Apple stays **disabled** for now.
+- Use Supabase **Auth → Users → "Send magic link"** to email yourself (the Resend account's address). It should arrive from `onboarding@resend.dev`, or in the Mailtrap inbox, and show a 6-digit code.
+- Email and Google are enabled in `nexui-dev`. `nexui-prod` can wait until you have a domain. Apple stays **disabled** for now.
 
 ### A9. Hand-off: values the code phase needs
 
