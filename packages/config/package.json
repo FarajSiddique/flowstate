@@ -6,6 +6,7 @@
   "exports": {
     "./typescript/base.json": "./typescript/base.json",
     "./eslint": "./eslint.js",
+    "./eslint-style": "./eslint-style.js",
     "./prettier": "./prettier.js"
   },
   "scripts": {

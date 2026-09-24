@@ -30,7 +30,9 @@ export default function VerifyScreen(): ReactElement {
     if (resendIn <= 0) {
       return;
     }
+
     const timer = setTimeout(() => setResendIn((seconds) => seconds - 1), 1_000);
+
     return () => clearTimeout(timer);
   }, [resendIn]);
 
@@ -39,6 +41,7 @@ export default function VerifyScreen(): ReactElement {
     if (verifying || resending) {
       return;
     }
+
     setVerifying(true);
     setError(null);
     setNotice(null);
@@ -52,6 +55,7 @@ export default function VerifyScreen(): ReactElement {
 
   function onChangeCode(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, CODE_LENGTH);
+
     setCode(digits);
     if (digits.length === CODE_LENGTH) {
       void verify(digits);
@@ -62,6 +66,7 @@ export default function VerifyScreen(): ReactElement {
     if (verifying || resending || resendIn > 0) {
       return;
     }
+
     setResending(true);
     setError(null);
     setNotice(null);

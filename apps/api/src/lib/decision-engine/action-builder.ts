@@ -43,11 +43,13 @@ function pick<T>(candidates: Candidate<T>[], id?: string): Candidate<T> | undefi
 // Remove chosen spans (latest first so indexes stay valid) and tidy what remains.
 function withoutSpans(text: string, spans: (Candidate<unknown> | undefined)[]): string {
   let result = text;
+
   for (const span of spans
     .filter((item): item is Candidate<unknown> => Boolean(item))
     .sort((a, b) => b.start - a.start)) {
     result = `${result.slice(0, span.start)} ${result.slice(span.end)}`;
   }
+
   return result
     .replace(/\s+([,.;!?])/g, '$1')
     .replace(/\s+/g, ' ')
@@ -69,9 +71,11 @@ export function buildIntentAction(
     case 'CREATE_TASK': {
       const priority = selections.priority ?? 'normal';
       let title = withoutSpans(input, [when]);
+
       if (priority !== 'normal') {
         title = title.replace(PRIORITY_CUE, '').trim();
       }
+
       return {
         kind: intent,
         title: capitalize(title.replace(TASK_PREFIX, '')),
@@ -79,10 +83,12 @@ export function buildIntentAction(
         priority,
       };
     }
+
     case 'CREATE_EVENT': {
       const duration = pick(candidates.duration, selections.duration);
       const location = pick(candidates.location, selections.location);
       const title = withoutSpans(input, [when, duration, location]).replace(EVENT_PREFIX, '');
+
       return {
         kind: intent,
         title: capitalize(title),
@@ -92,16 +98,20 @@ export function buildIntentAction(
         location: location?.value ?? null,
       };
     }
+
     case 'CREATE_NOTE': {
       const split = pick(candidates.noteSplit, selections.noteSplit);
+
       return {
         kind: intent,
         title: capitalize(split?.value.title ?? input.replace(NOTE_PREFIX, '')),
         body: split?.value.body ?? null,
       };
     }
+
     case 'SEARCH': {
       const range = pick(candidates.range, selections.range);
+
       return {
         kind: intent,
         query: withoutSpans(input, [range]).replace(SEARCH_PREFIX, ''),
@@ -109,6 +119,7 @@ export function buildIntentAction(
         range: range?.value ?? null,
       };
     }
+
     case 'UNKNOWN':
       return undefined;
   }
@@ -123,11 +134,13 @@ export function buildHighlights(
 ): IntentHighlight[] {
   const input = text.trim().replace(/\s+/g, ' ');
   const chosen: [HighlightField, Candidate<unknown> | undefined][] = [];
+
   switch (intent) {
     case 'CREATE_TASK': {
       chosen.push(['when', pick(candidates.when, selections.when)]);
       const priority = selections.priority ?? 'normal';
       const cue = priority !== 'normal' && input.match(PRIORITY_WORDS);
+
       if (cue && cue.index !== undefined) {
         chosen.push([
           'priority',
@@ -140,8 +153,10 @@ export function buildHighlights(
           },
         ]);
       }
+
       break;
     }
+
     case 'CREATE_EVENT':
       chosen.push(
         ['when', pick(candidates.when, selections.when)],
@@ -156,6 +171,7 @@ export function buildHighlights(
     default:
       break;
   }
+
   return chosen
     .flatMap(([field, span]) =>
       span ? [{ field, start: span.start, end: span.end, text: span.text }] : [],

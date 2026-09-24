@@ -10,6 +10,7 @@ const chunkKey = (key: string, index: number) => `${key}.${index}`;
 
 async function chunkCount(key: string): Promise<number> {
   const count = Number(await SecureStore.getItemAsync(countKey(key)));
+
   return Number.isInteger(count) && count > 0 ? count : 0;
 }
 
@@ -25,12 +26,15 @@ async function removeChunks(key: string, from: number, to: number) {
 export const secureSessionStorage = {
   async getItem(key: string): Promise<string | null> {
     const count = await chunkCount(key);
+
     if (!count) {
       return null;
     }
+
     const chunks = await Promise.all(
       Array.from({ length: count }, (_, index) => SecureStore.getItemAsync(chunkKey(key, index))),
     );
+
     // A missing chunk means an interrupted write; treat it as signed out.
     return chunks.some((chunk) => chunk === null) ? null : chunks.join('');
   },
@@ -43,6 +47,7 @@ export const secureSessionStorage = {
       { length: Math.max(1, Math.ceil(codePoints.length / CHUNK_LENGTH)) },
       (_, index) => codePoints.slice(index * CHUNK_LENGTH, (index + 1) * CHUNK_LENGTH).join(''),
     );
+
     await Promise.all(
       chunks.map((chunk, index) => SecureStore.setItemAsync(chunkKey(key, index), chunk)),
     );
@@ -52,6 +57,7 @@ export const secureSessionStorage = {
 
   async removeItem(key: string): Promise<void> {
     const count = await chunkCount(key);
+
     await SecureStore.deleteItemAsync(countKey(key));
     await removeChunks(key, 0, count);
   },

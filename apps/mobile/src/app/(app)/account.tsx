@@ -39,6 +39,7 @@ export default function AccountScreen(): ReactElement {
       if (__DEV__) {
         console.warn('Account deletion failed', caught);
       }
+
       setError('Could not delete your account. Check your connection and try again.');
       setPending(null);
     }

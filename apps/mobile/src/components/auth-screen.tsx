@@ -62,6 +62,7 @@ export function PrimaryButton({
   onPress,
 }: PrimaryButtonProps): ReactElement {
   const inactive = disabled || busy;
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -97,6 +98,7 @@ export function FormError({ message }: FormMessageProps): ReactElement | null {
   if (!message) {
     return null;
   }
+
   return (
     <Text accessibilityLiveRegion="polite" accessibilityRole="alert" style={styles.error}>
       {message}
@@ -108,6 +110,7 @@ export function FormNotice({ message }: FormMessageProps): ReactElement | null {
   if (!message) {
     return null;
   }
+
   return (
     <Text accessibilityLiveRegion="polite" style={styles.notice}>
       {message}

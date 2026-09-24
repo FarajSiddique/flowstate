@@ -30,7 +30,9 @@ export function startSessionLifecycle(
     if (!active) {
       return;
     }
+
     const previous = refreshOperations.get(auth);
+
     refreshOperations.set(auth, applyRefresh(previous, state));
   }
 
@@ -48,6 +50,7 @@ export function startSessionLifecycle(
   }
 
   const appStateSubscription = appState?.addEventListener('change', updateRefresh);
+
   if (appState) {
     updateRefresh(appState.currentState);
   }
@@ -58,6 +61,7 @@ export function startSessionLifecycle(
     if (appState) {
       updateRefresh('background');
     }
+
     active = false;
   };
 }

@@ -49,11 +49,13 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
     async classifyIntent(input) {
       const start = performance.now();
       const decision = await engine.classifyIntent(input);
+
       if (env.NODE_ENV !== 'production') {
         console.info(
           `[intent] provider=${provider} intent=${decision.intent} confidence=${decision.confidence} latencyMs=${Math.round(performance.now() - start)}`,
         );
       }
+
       return decision;
     },
   };

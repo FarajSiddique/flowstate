@@ -74,6 +74,7 @@ export default function HomeScreen() {
               if (!decision) {
                 return;
               }
+
               Keyboard.dismiss();
               setSelectedDecision(decision);
             }}

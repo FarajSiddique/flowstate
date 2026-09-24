@@ -11,9 +11,11 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     if (Platform.OS === 'web') {
       return;
     }
+
     const subscription = AppState.addEventListener('change', (state) => {
       focusManager.setFocused(state === 'active');
     });
+
     return () => subscription.remove();
   }, []);
 

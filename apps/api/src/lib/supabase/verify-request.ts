@@ -1,5 +1,6 @@
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
 
+import { jsonError } from '../http/responses.ts';
 import { getAuthClient, SupabaseConfigurationError } from './clients.ts';
 
 export interface AuthUser {
@@ -13,12 +14,14 @@ const bearerPattern = /^Bearer ([\w-]+\.[\w-]+\.[\w-]+)$/i;
 
 function unauthorized(headers: HeadersInit): Response {
   const withChallenge = new Headers(headers);
+
   withChallenge.set('WWW-Authenticate', 'Bearer');
-  return Response.json({ error: 'Sign in to continue.' }, { status: 401, headers: withChallenge });
+
+  return jsonError('Sign in to continue.', 401, withChallenge);
 }
 
 function unavailable(headers: HeadersInit): Response {
-  return Response.json({ error: 'Sign-in is temporarily unavailable.' }, { status: 503, headers });
+  return jsonError('Sign-in is temporarily unavailable.', 503, headers);
 }
 
 /**
@@ -31,6 +34,7 @@ export async function verifyRequest(
   env: Env = process.env,
 ): Promise<AuthUser | Response> {
   const token = bearerPattern.exec(request.headers.get('authorization')?.trim() ?? '')?.[1];
+
   if (!token) {
     return unauthorized(headers);
   }
@@ -38,11 +42,15 @@ export async function verifyRequest(
   try {
     // Verifies the signature locally against the project's cached JWKS, and checks expiry.
     const { data, error } = await getAuthClient(env).auth.getClaims(token);
+
     if (error && isAuthRetryableFetchError(error)) {
       console.error('[auth] Could not reach Supabase to verify a token.');
+
       return unavailable(headers);
     }
+
     const claims = data?.claims;
+
     if (
       error ||
       !claims ||
@@ -52,12 +60,14 @@ export async function verifyRequest(
     ) {
       return unauthorized(headers);
     }
+
     return { userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : null };
   } catch (error) {
     console.error(
       '[auth]',
       error instanceof SupabaseConfigurationError ? error.message : 'Token verification failed.',
     );
+
     return unavailable(headers);
   }
 }

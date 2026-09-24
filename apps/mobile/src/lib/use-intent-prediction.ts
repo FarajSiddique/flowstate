@@ -33,6 +33,7 @@ export function useIntentPrediction() {
 
   useEffect(() => {
     const input = text.trim();
+
     if (input.length < MIN_INPUT_LENGTH) {
       return;
     }
@@ -43,6 +44,7 @@ export function useIntentPrediction() {
       if (requestGeneration !== generation.current) {
         return;
       }
+
       activeController.current = controller;
       setPrediction({ text, decision: null, isPredicting: true, error: null });
       void classifyIntent({ text: input }, controller.signal)
@@ -50,12 +52,14 @@ export function useIntentPrediction() {
           if (requestGeneration !== generation.current) {
             return;
           }
+
           setPrediction({ text, decision, isPredicting: false, error: null });
         })
         .catch((error: unknown) => {
           if (requestGeneration !== generation.current || controller.signal.aborted) {
             return;
           }
+
           setPrediction({
             text,
             decision: null,
@@ -80,6 +84,7 @@ export function useIntentPrediction() {
   }, [text]);
 
   const current = prediction.text === text ? prediction : null;
+
   return {
     text,
     setText,

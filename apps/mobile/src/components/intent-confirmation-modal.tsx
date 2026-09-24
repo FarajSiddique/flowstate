@@ -72,10 +72,12 @@ function initialFields({ action, entities }: IntentDecision): FormFields {
     priority: 'normal',
     scope: 'all',
   };
+
   switch (action?.kind) {
     case 'CREATE_TASK':
     case 'CREATE_EVENT': {
       const when = action.kind === 'CREATE_TASK' ? action.due : action.start;
+
       Object.assign(fields, {
         title: action.title,
         date: when ? displayLocalDate(when.date) : '',
@@ -90,8 +92,10 @@ function initialFields({ action, entities }: IntentDecision): FormFields {
           attendees: action.attendees.join(', '),
         });
       }
+
       break;
     }
+
     case 'CREATE_NOTE':
       Object.assign(fields, { title: action.title, body: action.body ?? '' });
       break;
@@ -103,6 +107,7 @@ function initialFields({ action, entities }: IntentDecision): FormFields {
       });
       break;
   }
+
   return fields;
 }
 
@@ -118,6 +123,7 @@ export function IntentConfirmationModal({
   const marked = new Set(decision.highlights?.map((span) => span.field));
   const label = (text: string, key: keyof FormFields) => {
     const field = FIELD_MARKERS[key];
+
     return (
       <View style={styles.labelRow}>
         {field && marked.has(field) ? (
@@ -156,6 +162,7 @@ export function IntentConfirmationModal({
       <View accessibilityRole="radiogroup" accessibilityLabel={title} style={styles.segments}>
         {options.map((option) => {
           const selected = fields[key] === option.value;
+
           return (
             <Pressable
               key={option.value}

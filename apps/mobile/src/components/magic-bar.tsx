@@ -32,10 +32,12 @@ export function MagicBar({
 
   useEffect(() => {
     let cancelled = false;
+
     void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
       if (cancelled) {
         return;
       }
+
       // Marks fade in when a decision arrives and clear at once when typing resumes.
       if (reduceMotion || !marked) {
         opacity.setValue(marked ? 1 : 0);
@@ -47,6 +49,7 @@ export function MagicBar({
         }).start();
       }
     });
+
     return () => {
       cancelled = true;
     };

@@ -27,10 +27,12 @@ function authMessage(error: unknown, fallback: string): string {
     if (error.status === 429) {
       return 'Too many attempts. Wait a minute, then try again.';
     }
+
     if (error.code === 'otp_expired') {
       return 'That code is wrong or has expired.';
     }
   }
+
   return fallback;
 }
 
@@ -38,25 +40,32 @@ function authMessage(error: unknown, fallback: string): string {
 export function createAuthActions(auth: AuthClient, google: GoogleAuth): AuthActions {
   async function sendEmailCode(email: string): Promise<string> {
     const parsed = emailCodeRequestSchema.safeParse({ email });
+
     if (!parsed.success) {
       throw new AuthActionError('Enter a valid email address.');
     }
+
     const { error } = await auth.signInWithOtp({
       email: parsed.data.email,
       options: { shouldCreateUser: true },
     });
+
     if (error) {
       throw new AuthActionError(authMessage(error, 'Could not send a code. Try again.'));
     }
+
     return parsed.data.email;
   }
 
   async function verifyEmailCode(email: string, token: string): Promise<void> {
     const parsed = emailCodeVerificationSchema.safeParse({ email, token });
+
     if (!parsed.success) {
       throw new AuthActionError('Enter the 6-digit code.');
     }
+
     const { error } = await auth.verifyOtp({ ...parsed.data, type: 'email' });
+
     if (error) {
       throw new AuthActionError(authMessage(error, 'Could not verify the code. Try again.'));
     }
@@ -65,14 +74,18 @@ export function createAuthActions(auth: AuthClient, google: GoogleAuth): AuthAct
   /** Returns false when the native sheet was cancelled or is already open. */
   async function signInWithGoogle(): Promise<boolean> {
     const idToken = await google.getIdToken();
+
     if (idToken === null) {
       return false;
     }
+
     try {
       const { error } = await auth.signInWithIdToken({ provider: 'google', token: idToken });
+
       if (error) {
         throw error;
       }
+
       return true;
     } catch (error) {
       throw new AuthActionError(authMessage(error, 'Google sign-in failed. Try again.'));
@@ -83,8 +96,10 @@ export function createAuthActions(auth: AuthClient, google: GoogleAuth): AuthAct
   async function signOut(): Promise<void> {
     await google.signOut();
     const { error } = await auth.signOut();
+
     if (error) {
       const { error: localError } = await auth.signOut({ scope: 'local' });
+
       if (localError) {
         throw new AuthActionError('Could not sign out. Try again.');
       }
@@ -95,6 +110,7 @@ export function createAuthActions(auth: AuthClient, google: GoogleAuth): AuthAct
   async function clearDeletedAccount(): Promise<void> {
     await google.signOut();
     const { error } = await auth.signOut({ scope: 'local' });
+
     if (error) {
       throw new AuthActionError('Could not clear your session. Try again.');
     }

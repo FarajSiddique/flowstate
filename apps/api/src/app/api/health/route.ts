@@ -1,6 +1,6 @@
 import { healthResponseSchema, type HealthResponse } from '@nexui/types';
 
-export function GET() {
+export function GET(): Response {
   const body: HealthResponse = { status: 'ok' };
 
   return Response.json(healthResponseSchema.parse(body), {

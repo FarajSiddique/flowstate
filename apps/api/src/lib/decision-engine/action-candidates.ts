@@ -1,5 +1,6 @@
-import type { DateRange, IntentContext, LocalDateTime } from '@nexui/types';
 import * as chrono from 'chrono-node';
+
+import type { DateRange, IntentContext, LocalDateTime } from '@nexui/types';
 
 // Code over-finds source spans; Jev only selects among them (or none). Values are
 // normalized here, so the model never writes dates, names, or places itself.
@@ -46,11 +47,13 @@ function isoDate(year: number, month: number, day: number): string {
 export function addDays(date: string, days: number): string {
   const [year, month, day] = date.split('-').map(Number);
   const shifted = new Date(Date.UTC(year!, month! - 1, day! + days));
+
   return isoDate(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1, shifted.getUTCDate());
 }
 
 function weekday(date: string): number {
   const [year, month, day] = date.split('-').map(Number);
+
   return new Date(Date.UTC(year!, month! - 1, day!)).getUTCDay();
 }
 
@@ -77,6 +80,7 @@ export function resolveReference(context?: IntentContext): Reference {
     part('minute'),
     part('second'),
   );
+
   return {
     instant,
     offsetMinutes: Math.round((wallClock - instant.getTime()) / 60_000),
@@ -91,12 +95,14 @@ function overlaps(a: { start: number; end: number }, b: { start: number; end: nu
 // Include a leading preposition so removing the span leaves a clean title.
 function extendBackward(text: string, start: number, pattern: RegExp): number {
   const match = text.slice(0, start).match(pattern);
+
   return match ? start - match[0].length : start;
 }
 
 function trimSpan(text: string, start: number, end: number) {
   const raw = text.slice(start, end);
   const trimmed = raw.replace(/[\s,.;!?]+$/, '');
+
   return { start, end: start + trimmed.length, text: trimmed };
 }
 
@@ -111,18 +117,23 @@ function findDurations(text: string): Omit<Candidate<number>, 'id'>[] {
   const pattern =
     /\b(?:for\s+)?(an?|half an|\d+(?:\.\d+)?)[\s-]*(hours?|hrs?|h|minutes?|mins?)\b(?:\s+long)?/gi;
   const found: Omit<Candidate<number>, 'id'>[] = [];
+
   for (const match of text.matchAll(pattern)) {
     // "in 2 hours" is a start time, not a length.
     if (/\bin\s+$/i.test(text.slice(0, match.index))) {
       continue;
     }
+
     const amount = /^half/i.test(match[1]!) ? 0.5 : /^an?$/i.test(match[1]!) ? 1 : Number(match[1]);
     const minutes = Math.round(/^h/i.test(match[2]!) ? amount * 60 : amount);
+
     if (minutes < 1 || minutes > 1440) {
       continue;
     }
+
     found.push({ ...trimSpan(text, match.index, match.index + match[0].length), value: minutes });
   }
+
   return found;
 }
 
@@ -137,29 +148,38 @@ function findWhen(
     { forwardDate: true },
   );
   const found: Omit<Candidate<LocalDateTime>, 'id'>[] = [];
+
   for (const result of results) {
     const span = trimSpan(
       text,
       extendBackward(text, result.index, /\b(?:on|by|due|before|until)\s+$/i),
       result.index + result.text.length,
     );
+
     // chrono reads "for 45 min" as "45 minutes from now".
     if (durations.some((duration) => overlaps(span, duration))) {
       continue;
     }
+
     const { start } = result;
     let time: string | null = null;
+
     if (start.isCertain('hour')) {
       let hour = start.get('hour') ?? 0;
+
       // Preserve the existing convention: unqualified hours 1–7 mean PM.
       if (!start.isCertain('meridiem') && hour >= 1 && hour <= 7) {
         hour += 12;
       }
+
       time = `${pad(hour)}:${pad(start.get('minute') ?? 0)}`;
     }
+
     const date = isoDate(start.get('year')!, start.get('month')!, start.get('day')!);
+
     found.push({ ...span, value: { date, time } });
   }
+
   return found;
 }
 
@@ -167,12 +187,15 @@ function phraseAfter(text: string, from: number, blocked: { start: number; end: 
   const rest = text.slice(from);
   const stop = rest.search(PHRASE_STOP);
   let end = from + (stop === -1 ? rest.length : stop);
+
   for (const span of blocked) {
     if (span.start >= from && span.start < end) {
       end = span.start;
     }
   }
+
   const phrase = text.slice(from, end).trim();
+
   return phrase ? { phrase, end: from + text.slice(from, end).trimEnd().length } : null;
 }
 
@@ -187,15 +210,20 @@ function findLocations(
   const pattern =
     /\b(?:at|in)\s+(?!\d|noon\b|midnight\b|the (?:morning|afternoon|evening)\b|tonight\b)/gi;
   const found: Omit<Candidate<string>, 'id'>[] = [];
+
   for (const match of text.matchAll(pattern)) {
     const start = match.index;
+
     if (blocked.some((span) => start >= span.start && start < span.end)) {
       continue;
     }
+
     const phrase = phraseAfter(text, start + match[0].length, blocked);
+
     if (!phrase || phrase.phrase.split(/\s+/).length > 6) {
       continue;
     }
+
     found.push({
       start,
       end: phrase.end,
@@ -203,6 +231,7 @@ function findLocations(
       value: phrase.phrase,
     });
   }
+
   return found;
 }
 
@@ -212,21 +241,28 @@ function findAttendees(
 ): Omit<Candidate<string[]>, 'id'>[] {
   const pattern = /\b(?:meet(?:ing)?(?:\s+up)?(?:\s+with)?|with|call|see)\s+/gi;
   const found: Omit<Candidate<string[]>, 'id'>[] = [];
+
   for (const match of text.matchAll(pattern)) {
     const phrase = phraseAfter(text, match.index + match[0].length, blocked);
+
     if (!phrase) {
       continue;
     }
+
     const names = phrase.phrase
       .split(/\s*(?:,|&|\band\b)\s*/i)
       .filter((name) => name && name.split(/\s+/).length <= 3)
       .map(capitalizeWords);
+
     if (!names.length) {
       continue;
     }
+
     const start = match.index + match[0].length;
+
     found.push({ start, end: phrase.end, text: text.slice(start, phrase.end), value: names });
   }
+
   return found;
 }
 
@@ -253,28 +289,35 @@ function findRanges(
     ],
   ];
   const found: Omit<Candidate<DateRange>, 'id'>[] = [];
+
   for (const [pattern, toRange] of relative) {
     for (const match of text.matchAll(pattern)) {
       const start = extendBackward(text, match.index, /\b(?:from|in|during|since|over)\s+$/i);
+
       found.push({
         ...trimSpan(text, start, match.index + match[0].length),
         value: toRange(match),
       });
     }
   }
+
   // Single dates ("on Friday") become one-day ranges unless a relative range covers them.
   for (const candidate of when) {
     if (found.some((range) => overlaps(range, candidate))) {
       continue;
     }
+
     const { date } = candidate.value;
+
     found.push({ ...candidate, value: { from: date, to: date } });
   }
+
   return found;
 }
 
 function nextMonth(monthStart: string): string {
   const [year, month] = monthStart.split('-').map(Number);
+
   return month === 12 ? isoDate(year! + 1, 1, 1) : isoDate(year!, month! + 1, 1);
 }
 
@@ -282,22 +325,29 @@ function findNoteSplits(text: string): Omit<Candidate<{ title: string; body: str
   const base = text.replace(NOTE_PREFIX, '');
   const offset = text.length - base.length;
   const found: Omit<Candidate<{ title: string; body: string }>, 'id'>[] = [];
+
   for (const separator of [/:\s+/, /\s+[-–—]\s+/, /[.!?]\s+/, /\n+/]) {
     const match = base.match(separator);
+
     if (match?.index === undefined) {
       continue;
     }
+
     const title = base
       .slice(0, match.index)
       .replace(/[.!?]$/, '')
       .trim();
     const body = base.slice(match.index + match[0].length).trim();
+
     if (!title || !body || found.some((split) => split.value.title === title)) {
       continue;
     }
+
     const start = offset + match.index;
+
     found.push({ start, end: start + match[0].length, text: match[0], value: { title, body } });
   }
+
   return found;
 }
 
@@ -306,6 +356,7 @@ export function findActionCandidates(text: string, reference: Reference): Action
   const when = withIds('when', findWhen(text, reference, durations));
   const timed = [...when, ...durations];
   const location = withIds('location', findLocations(text, timed));
+
   return {
     when,
     duration: durations,

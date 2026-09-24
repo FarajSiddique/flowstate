@@ -1,10 +1,11 @@
+import { z } from 'zod';
+
 import {
   intentResponseSchema,
   intentSchema,
   type IntentDecision,
   type IntentRequest,
 } from '@nexui/types';
-import { z } from 'zod';
 
 import { buildHighlights, buildIntentAction } from './action-builder.ts';
 import { findActionCandidates, resolveReference } from './action-candidates.ts';
@@ -76,12 +77,15 @@ export class JevDecisionEngine implements DecisionEngine {
     const text = rawText.trim().replace(/\s+/g, ' ');
     const candidates = findActionCandidates(text, resolveReference(context));
     const allQuestions = { ...questions, ...buildFieldQuestions(candidates) };
+
     if (process.env.NODE_ENV === 'development') {
       console.info(`[intent] provider=jev questions=${Object.keys(allQuestions).length}`);
     }
+
     const controller = new AbortController();
     let failure = 'network_error';
     let timer: ReturnType<typeof setTimeout> | undefined;
+
     try {
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
@@ -106,17 +110,20 @@ export class JevDecisionEngine implements DecisionEngine {
           signal: controller.signal,
           cache: 'no-store',
         });
+
         if (!response.ok) {
           failure = `gateway_http_${response.status}`;
           // Do not log response bodies, which can contain input or provider internals.
           throw new Error('Gateway rejected intent request');
         }
+
         failure = 'invalid_response';
         const { answers } = evaluationSchema.parse(await response.json());
         const { choice, confidence, probabilities } = answers.intent;
         const selections = readFieldSelections(answers, candidates);
         const action = buildIntentAction(choice, text, candidates, selections);
         const highlights = action ? buildHighlights(choice, text, candidates, selections) : [];
+
         return intentResponseSchema.parse({
           intent: choice,
           confidence: Math.min(confidence ?? probabilities[choice], answers.ready.probability),
@@ -125,12 +132,14 @@ export class JevDecisionEngine implements DecisionEngine {
           ...(highlights.length > 0 && { highlights }),
         });
       };
+
       // Bound both the network call and response body parsing, even if transport stalls.
       return await Promise.race([request(), timeout]);
     } catch {
       if (process.env.NODE_ENV !== 'production') {
         console.warn(`[intent] provider=jev error=${failure}`);
       }
+
       return intentResponseSchema.parse({ intent: 'UNKNOWN', confidence: 0, entities: {} });
     } finally {
       clearTimeout(timer);

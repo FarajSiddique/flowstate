@@ -11,5 +11,6 @@ export function previewEmphasis(
   if (decision.intent === 'UNKNOWN' || decision.confidence < MEDIUM_CONFIDENCE) {
     return 'none';
   }
+
   return decision.confidence >= HIGH_CONFIDENCE ? 'high' : 'medium';
 }

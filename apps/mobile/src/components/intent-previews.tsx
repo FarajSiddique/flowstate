@@ -51,6 +51,7 @@ function eventDraft({ action, entities }: IntentDecision): Draft {
       ],
     };
   }
+
   return {
     title: action.title || entities.title,
     rows: [
@@ -70,6 +71,7 @@ function taskDraft({ action, entities }: IntentDecision): Draft {
   if (action?.kind !== 'CREATE_TASK') {
     return { title: entities.title, rows: [{ label: 'Due', value: displayDate(entities.date) }] };
   }
+
   return {
     title: action.title || entities.title,
     rows: [
@@ -86,6 +88,7 @@ function taskDraft({ action, entities }: IntentDecision): Draft {
 function noteDraft({ action, entities }: IntentDecision): Draft {
   const note = action?.kind === 'CREATE_NOTE' ? action : null;
   const title = note?.title || entities.title;
+
   return {
     title: title && displayTitle(title),
     rows: [{ label: 'Note', value: note?.body }],
@@ -96,6 +99,7 @@ function searchDraft({ action, entities }: IntentDecision): Draft {
   const search = action?.kind === 'SEARCH' ? action : null;
   const query = search?.query || entities.query;
   const scope = SCOPE_OPTIONS.find((option) => option.value === search?.scope);
+
   return {
     title: query && displayTitle(query),
     rows: [
@@ -124,9 +128,11 @@ function PreviewCard({
   onContinue: () => void;
 }) {
   const { title, rows } = DRAFTS[intent](decision);
+
   if (!title) {
     return null;
   }
+
   const copy = CARD_COPY[intent];
   const marked = new Set(decision.highlights?.map((span) => span.field));
   const tentative = emphasis === 'medium';
@@ -191,10 +197,13 @@ export function IntentPreview({
   if (!decision || decision.intent === 'UNKNOWN') {
     return null;
   }
+
   const emphasis = previewEmphasis(decision);
+
   if (emphasis === 'none') {
     return null;
   }
+
   return (
     <PreviewCard
       decision={decision}

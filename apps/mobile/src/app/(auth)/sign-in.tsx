@@ -18,10 +18,12 @@ export default function SignInScreen(): ReactElement {
     if (pending !== null) {
       return;
     }
+
     setPending('email');
     setError(null);
     try {
       const sentTo = await sendEmailCode(email);
+
       router.push({ pathname: '/verify', params: { email: sentTo } });
     } catch (caught) {
       setError(caught instanceof AuthActionError ? caught.message : 'Something went wrong.');
@@ -35,6 +37,7 @@ export default function SignInScreen(): ReactElement {
     if (pending !== null) {
       return;
     }
+
     setPending('google');
     setError(null);
     try {

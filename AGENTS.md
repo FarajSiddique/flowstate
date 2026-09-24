@@ -5,7 +5,7 @@
 This pnpm/Turborepo monorepo contains four private workspaces:
 
 - `apps/mobile/src/app/`: Expo Router screens and root layout. API/query helpers live in `src/lib/`; local Zustand stores live in `src/stores/`.
-- `apps/api/src/app/`: Next.js App Router pages and routes, including `api/health/route.ts`. Future AI and Supabase code belongs in `src/lib/decision-engine/` and `src/lib/supabase/`.
+- `apps/api/src/app/`: Next.js App Router pages and routes, including `api/health/route.ts`. AI, Supabase, and shared response code belongs in `src/lib/decision-engine/`, `src/lib/supabase/`, and `src/lib/http/`. API-specific rules live in `apps/api/AGENTS.md`.
 - `packages/types/src/`: shared Zod schemas and inferred TypeScript contracts, imported through `@nexui/types`.
 - `packages/config/`: strict TypeScript defaults, shared ESLint rules, and Prettier configuration.
 
@@ -31,6 +31,10 @@ Use Node.js 24 (`nvm use`) and pnpm 10.34.5. Run commands from the root:
 Use strict TypeScript, two-space indentation, single quotes, semicolons, and trailing commas. Prettier targets 100-character lines; ESLint uses framework presets. Use PascalCase for components/types, camelCase for functions, and kebab-case helper filenames such as `query-provider.tsx`. Preserve framework filenames such as `_layout.tsx` and `route.ts`. Infer shared contracts from Zod. Keep server state in TanStack Query and local UI state in Zustand.
 
 Always use braces and multiline bodies for `if`, `else`, `for`, `while`, and `do` statements, including one-statement guards. ESLint's `curly: ['error', 'all']` requires braces; Prettier formats the blocks. Do not disable the rule to keep a single-line statement.
+
+Shared layout rules live in `packages/config/eslint-style.js`. Leave a blank line before `return`, after a block (`if`, `try`, loops), and after a group of declarations. `pnpm lint:fix` adds these blank lines automatically.
+
+Claude Code runs `.claude/hooks/format.sh` after every edit. The hook runs Prettier, then ESLint `--fix` in the file's owning workspace, and reports any errors ESLint can't fix back to Claude.
 
 After code changes, run `pnpm fix`, inspect the diff for unrelated changes, then run `pnpm lint` and `pnpm format:check` before handing off. Keep formatting-only changes separate from behavioral edits when practical. These instructions apply to Codex and Claude Code; `CLAUDE.md` imports this file.
 

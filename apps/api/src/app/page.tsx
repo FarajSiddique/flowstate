@@ -1,4 +1,6 @@
-export default function HomePage() {
+import type { JSX } from 'react';
+
+export default function HomePage(): JSX.Element {
   return (
     <main style={{ maxWidth: 640, margin: '80px auto', padding: 24 }}>
       <h1>nexui API</h1>

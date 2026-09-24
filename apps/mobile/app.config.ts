@@ -10,9 +10,11 @@ const googleIosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim()
 if (!googleIosUrlScheme) {
   const message =
     'EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME is not set, so iOS builds cannot use Google sign-in.';
+
   if (process.env.EAS_BUILD_PLATFORM === 'ios') {
     throw new Error(message);
   }
+
   if (process.env.EAS_BUILD !== 'true') {
     console.warn(`[app.config] ${message}`);
   }

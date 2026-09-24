@@ -1,5 +1,6 @@
-import { searchScopeSchema, taskPrioritySchema } from '@nexui/types';
 import { z } from 'zod';
+
+import { searchScopeSchema, taskPrioritySchema } from '@nexui/types';
 
 import type { ActionCandidates, Candidate } from './action-candidates.ts';
 import type { FieldSelections } from './action-builder.ts';
@@ -81,8 +82,10 @@ const ENUM_QUESTIONS = {
 function describe(field: SpanField, candidate: Candidate<unknown>): string {
   if (field === 'noteSplit') {
     const { title, body } = candidate.value as { title: string; body: string };
+
     return `Title: "${title}"; body: "${body}"`;
   }
+
   return `"${candidate.text}"`;
 }
 
@@ -90,12 +93,16 @@ function describe(field: SpanField, candidate: Candidate<unknown>): string {
 // but only fields with candidates are asked, so plain inputs stay cheap.
 export function buildFieldQuestions(candidates: ActionCandidates): Record<string, ChoiceQuestion> {
   const questions: Record<string, ChoiceQuestion> = { ...ENUM_QUESTIONS };
+
   for (const field of Object.keys(SPAN_QUESTIONS) as SpanField[]) {
     const options = candidates[field] as Candidate<unknown>[];
+
     if (!options.length) {
       continue;
     }
+
     const { id, instructions, none } = SPAN_QUESTIONS[field];
+
     questions[id] = {
       type: 'choice',
       instructions: `${instructions} ${DATA_RULE}`,
@@ -105,6 +112,7 @@ export function buildFieldQuestions(candidates: ActionCandidates): Record<string
       },
     };
   }
+
   return questions;
 }
 
@@ -118,13 +126,17 @@ const choiceAnswerSchema = z.object({
 
 function confidentChoice(answer: unknown, options: readonly string[]): string | undefined {
   const parsed = choiceAnswerSchema.safeParse(answer);
+
   if (!parsed.success) {
     return undefined;
   }
+
   const { choice, confidence, probabilities } = parsed.data;
+
   if (choice === 'none' || !options.includes(choice)) {
     return undefined;
   }
+
   return (confidence ?? probabilities[choice] ?? 0) >= FIELD_CONFIDENCE ? choice : undefined;
 }
 
@@ -140,9 +152,12 @@ export function readFieldSelections(
     scope: searchScopeSchema.safeParse(confidentChoice(answers.scope, searchScopeSchema.options))
       .data,
   };
+
   for (const field of Object.keys(SPAN_QUESTIONS) as SpanField[]) {
     const ids = (candidates[field] as Candidate<unknown>[]).map((candidate) => candidate.id);
+
     selections[field] = confidentChoice(answers[SPAN_QUESTIONS[field].id], ids);
   }
+
   return selections;
 }
