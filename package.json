@@ -16,6 +16,7 @@
     "fix": "pnpm lint:fix && pnpm format",
     "typecheck": "turbo run typecheck",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "eval:intent": "node --experimental-strip-types scripts/eval-intent.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

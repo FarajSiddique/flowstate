@@ -22,6 +22,7 @@ Use Node.js 24 (`nvm use`) and pnpm 10.34.5. Run commands from the root:
 - `pnpm build`: build Next.js and export Expo web; does not build native binaries.
 - `pnpm lint` / `pnpm typecheck`: check all applicable workspaces.
 - `pnpm test`: run the Node test suite.
+- `pnpm eval:intent`: run `evals/intent-fixtures.json` through the decision engine (`--provider jev` makes billed calls; `--compare <file>` diffs runs).
 - `pnpm lint:fix`: apply ESLint fixes across the workspaces.
 - `pnpm fix`: apply ESLint fixes, then Prettier formatting.
 - `pnpm format` / `pnpm format:check`: apply or verify formatting.
@@ -47,6 +48,22 @@ This is a prototype: API and mobile contracts can change together. Do not add ba
 ## Testing Guidelines
 
 `pnpm test` uses Node's built-in runner with TypeScript stripping and runs `tests/*.test.mjs`. No coverage threshold is configured. Test observable behavior at external boundaries; prefer direct imports and explicit dependencies over module-loader mocks. Run tests, lint, typecheck, formatting checks, and relevant builds before submitting. Smoke-test the affected user flow; for networking changes, verify `GET /api/health` returns `{"status":"ok"}` and check Connected, Unreachable, and recovery states in Expo. Auth ownership and native smoke checks are documented in `docs/architecture/authentication.md`.
+
+## Claude Code Agents
+
+Project subagents live in `.claude/agents/`. Reviewers report findings and never edit.
+
+- `api-reviewer`: before handing off changes in `apps/api` or `packages/types`.
+- `mobile-reviewer`: before handing off changes in `apps/mobile`.
+- `security-reviewer`: for changes to auth, env, logging, API routes, or the decision engine.
+- `docs-keeper`: after a behavior, contract, env, or command change; it edits docs.
+- `intent-evaluator`: after changes to the decision-engine prompt or model; defaults to the free mock provider.
+
+## Claude Code Skills
+
+Project skills live in `.claude/skills/`.
+
+- `add-intent`: add, rename, or remove an intent. It covers all 14 files, in order, and includes a completeness check.
 
 ## Commit & Pull Request Guidelines
 
