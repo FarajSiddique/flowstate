@@ -8,12 +8,12 @@ const headers = {
   'Access-Control-Allow-Headers': 'Authorization',
 };
 
-export function OPTIONS() {
+export function OPTIONS(): Response {
   return new Response(null, { status: 204, headers });
 }
 
 // Permanently deletes the signed-in user's account (required by App Store rules).
-export async function DELETE(request: Request) {
+export async function DELETE(request: Request): Promise<Response> {
   const user = await verifyRequest(request, headers);
   if (user instanceof Response) {
     return user;

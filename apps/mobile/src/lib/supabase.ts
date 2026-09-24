@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto';
 
 import { createClient } from '@supabase/supabase-js';
-import { AppState, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { secureSessionStorage } from './secure-session-storage';
 
@@ -17,23 +17,9 @@ if (!supabaseUrl || !supabasePublishableKey) {
 export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   auth: {
     // The web preview keeps Supabase's default localStorage; SecureStore is native only.
-    ...(Platform.OS !== 'web' ? { storage: secureSessionStorage } : {}),
-    autoRefreshToken: true,
+    storage: Platform.OS === 'web' ? undefined : secureSessionStorage,
+    autoRefreshToken: Platform.OS === 'web',
     persistSession: true,
     detectSessionInUrl: false,
   },
 });
-
-// Refresh tokens only while the app is in the foreground. Registered once, at import.
-if (Platform.OS !== 'web') {
-  if (AppState.currentState === 'active') {
-    void supabase.auth.startAutoRefresh();
-  }
-  AppState.addEventListener('change', (state) => {
-    if (state === 'active') {
-      void supabase.auth.startAutoRefresh();
-    } else {
-      void supabase.auth.stopAutoRefresh();
-    }
-  });
-}

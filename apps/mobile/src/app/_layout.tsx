@@ -6,13 +6,22 @@ import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-gr
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, type ReactElement } from 'react';
+import { AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { QueryProvider } from '@/lib/query-provider';
+import { startSessionLifecycle } from '@/lib/session-lifecycle';
+import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
-import { useSessionStore } from '@/stores/use-session-store';
+import { updateSession, useSessionStore } from '@/stores/use-session-store';
 
-export default function RootLayout() {
+export default function RootLayout(): ReactElement | null {
+  useEffect(() => {
+    const nativeAppState = Platform.OS === 'web' ? undefined : AppState;
+    return startSessionLifecycle(supabase.auth, updateSession, nativeAppState);
+  }, []);
+
   const [fontsLoaded, fontError] = useFonts({
     AtkinsonHyperlegible_400Regular,
     AtkinsonHyperlegible_700Bold,

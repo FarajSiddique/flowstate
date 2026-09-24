@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,15 +13,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, fonts } from '@/lib/theme';
 
-export function AuthScreen({
-  title,
-  subtitle,
-  children,
-}: {
+interface AuthScreenProps {
   title: string;
   subtitle: string;
   children: ReactNode;
-}) {
+}
+
+interface ButtonProps {
+  label: string;
+  disabled?: boolean;
+  onPress: () => void;
+}
+
+interface PrimaryButtonProps extends ButtonProps {
+  busy?: boolean;
+}
+
+interface FormMessageProps {
+  message: string | null;
+}
+
+export function AuthScreen({ title, subtitle, children }: AuthScreenProps): ReactElement {
   return (
     <SafeAreaView style={styles.screen}>
       <KeyboardAvoidingView
@@ -48,12 +60,7 @@ export function PrimaryButton({
   busy,
   disabled,
   onPress,
-}: {
-  label: string;
-  busy?: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
+}: PrimaryButtonProps): ReactElement {
   const inactive = disabled || busy;
   return (
     <Pressable
@@ -72,15 +79,7 @@ export function PrimaryButton({
   );
 }
 
-export function TextButton({
-  label,
-  disabled,
-  onPress,
-}: {
-  label: string;
-  disabled?: boolean;
-  onPress: () => void;
-}) {
+export function TextButton({ label, disabled, onPress }: ButtonProps): ReactElement {
   return (
     <Pressable
       accessibilityRole="button"
@@ -94,7 +93,7 @@ export function TextButton({
   );
 }
 
-export function FormError({ message }: { message: string | null }) {
+export function FormError({ message }: FormMessageProps): ReactElement | null {
   if (!message) {
     return null;
   }
@@ -105,7 +104,7 @@ export function FormError({ message }: { message: string | null }) {
   );
 }
 
-export function FormNotice({ message }: { message: string | null }) {
+export function FormNotice({ message }: FormMessageProps): ReactElement | null {
   if (!message) {
     return null;
   }

@@ -9,7 +9,7 @@ This pnpm/Turborepo monorepo contains four private workspaces:
 - `packages/types/src/`: shared Zod schemas and inferred TypeScript contracts, imported through `@nexui/types`.
 - `packages/config/`: strict TypeScript defaults, shared ESLint rules, and Prettier configuration.
 
-No dedicated tests or application assets directories exist yet. Keep new assets within their owning app. Keep server code out of shared contracts and mobile imports.
+`tests/` contains Node tests; `docs/architecture/` contains short guides to current behavior. Keep new assets within their owning app. Keep server code out of shared contracts and mobile imports.
 
 ## Build, Test, and Development Commands
 
@@ -21,6 +21,7 @@ Use Node.js 24 (`nvm use`) and pnpm 10.34.5. Run commands from the root:
 - `pnpm dev:web`: launch Expo's browser preview.
 - `pnpm build`: build Next.js and export Expo web; does not build native binaries.
 - `pnpm lint` / `pnpm typecheck`: check all applicable workspaces.
+- `pnpm test`: run the Node test suite.
 - `pnpm lint:fix`: apply ESLint fixes across the workspaces.
 - `pnpm fix`: apply ESLint fixes, then Prettier formatting.
 - `pnpm format` / `pnpm format:check`: apply or verify formatting.
@@ -33,13 +34,19 @@ Always use braces and multiline bodies for `if`, `else`, `for`, `while`, and `do
 
 After code changes, run `pnpm fix`, inspect the diff for unrelated changes, then run `pnpm lint` and `pnpm format:check` before handing off. Keep formatting-only changes separate from behavioral edits when practical. These instructions apply to Codex and Claude Code; `CLAUDE.md` imports this file.
 
+Prefer `async`/`await` with `try`/`catch`. Expand nested ternaries and conditional object spreads; keep simple ternaries, `map`/`filter`, and `??` defaults when readable. Prefer functions; use classes only for meaningful state/lifecycle ownership or standard error subclasses. Give exported functions explicit parameter and return types, infer obvious local types, and name complex shapes. Continue deriving shared contracts from Zod.
+
+Keep each flow readable from top to bottom. Extract helpers for distinct responsibilities and keep them nearby unless reuse or a platform boundary warrants a separate module. Avoid generic action wrappers that hide a screen's operation and error handling. Add short summaries and useful examples for domain logic; keep inline comments sparse and explain the broader flow in `docs/architecture/`.
+
+This is a prototype: API and mobile contracts can change together. Do not add backward-compatibility paths for hypothetical older clients. Preserve intended user behavior unless the task calls for a behavior change.
+
 ## Testing Guidelines
 
-No automated test runner, test script, or coverage threshold is configured. Run lint, typecheck, formatting checks, and relevant builds before submitting. Smoke-test `GET /api/health` for `{"status":"ok"}`; verify Connected, Unreachable, and recovery states in Expo. When introducing tests, document the runner and command; prefer colocated `*.test.ts(x)` files.
+`pnpm test` uses Node's built-in runner with TypeScript stripping and runs `tests/*.test.mjs`. No coverage threshold is configured. Test observable behavior at external boundaries; prefer direct imports and explicit dependencies over module-loader mocks. Run tests, lint, typecheck, formatting checks, and relevant builds before submitting. Smoke-test the affected user flow; for networking changes, verify `GET /api/health` returns `{"status":"ok"}` and check Connected, Unreachable, and recovery states in Expo. Auth ownership and native smoke checks are documented in `docs/architecture/authentication.md`.
 
 ## Commit & Pull Request Guidelines
 
-History currently contains only `init mono repo`; no formal commit convention exists. Use concise imperative subjects. PRs should explain the change, list validation results, link relevant issues, and include screenshots for UI changes. Keep scope focused.
+Use concise imperative subjects. PRs should explain the change, list validation results, link relevant issues, and include screenshots for UI changes. Keep scope focused.
 
 ## Security & Configuration
 

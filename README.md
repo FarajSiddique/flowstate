@@ -5,6 +5,8 @@ slice proves **natural-language input → typed intent → deterministic mobile 
 Intent classification can use either a local mock or Jev through Vercel AI Gateway.
 Users sign in with Supabase Auth (emailed 6-digit code or native Google); there is
 no database functionality yet. Setup steps are in `docs/specs/auth.md`.
+For the current auth flow and ownership boundaries, see
+[Authentication](docs/architecture/authentication.md).
 
 ## Requirements
 

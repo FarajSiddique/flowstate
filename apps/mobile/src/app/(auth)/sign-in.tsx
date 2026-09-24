@@ -1,6 +1,6 @@
 import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AuthScreen, authStyles, FormError, PrimaryButton } from '@/components/auth-screen';
@@ -9,39 +9,46 @@ import { colors, fonts } from '@/lib/theme';
 
 type Pending = 'email' | 'google' | null;
 
-export default function SignInScreen() {
+export default function SignInScreen(): ReactElement {
   const [email, setEmail] = useState('');
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const run = async (kind: Exclude<Pending, null>, action: () => Promise<void>) => {
-    setPending(kind);
+  async function submitEmail() {
+    if (pending !== null) {
+      return;
+    }
+    setPending('email');
     setError(null);
     try {
-      await action();
+      const sentTo = await sendEmailCode(email);
+      router.push({ pathname: '/verify', params: { email: sentTo } });
     } catch (caught) {
       setError(caught instanceof AuthActionError ? caught.message : 'Something went wrong.');
     } finally {
       setPending(null);
     }
-  };
-
-  const submitEmail = () =>
-    run('email', async () => {
-      const sentTo = await sendEmailCode(email);
-      router.push({ pathname: '/verify', params: { email: sentTo } });
-    });
+  }
 
   // A successful sign-in updates the session, and the root layout swaps to the app.
-  const continueWithGoogle = () =>
-    run('google', async () => {
+  async function continueWithGoogle() {
+    if (pending !== null) {
+      return;
+    }
+    setPending('google');
+    setError(null);
+    try {
       await signInWithGoogle();
-    });
+    } catch (caught) {
+      setError(caught instanceof AuthActionError ? caught.message : 'Something went wrong.');
+    } finally {
+      setPending(null);
+    }
+  }
 
   return (
     <AuthScreen title="Sign in" subtitle="Use Google, or get a one-time code by email.">
       {Platform.OS !== 'web' ? (
-        // Provider buttons share this column so Sign in with Apple can sit beside Google later.
         <View style={styles.providers}>
           <GoogleSigninButton
             style={styles.providerButton}

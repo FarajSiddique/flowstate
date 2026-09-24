@@ -1,5 +1,5 @@
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 
 import {
@@ -14,10 +14,10 @@ import { AuthActionError, sendEmailCode, verifyEmailCode } from '@/lib/auth';
 import { colors } from '@/lib/theme';
 
 const CODE_LENGTH = 6;
-// Supabase allows one code per address every 60 seconds.
+// Match the email resend interval configured in Supabase.
 const RESEND_AFTER_S = 60;
 
-export default function VerifyScreen() {
+export default function VerifyScreen(): ReactElement {
   const { email = '' } = useLocalSearchParams<{ email?: string }>();
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
@@ -35,8 +35,8 @@ export default function VerifyScreen() {
   }, [resendIn]);
 
   // A successful verification updates the session, and the root layout swaps to the app.
-  const verify = async (value: string) => {
-    if (verifying) {
+  async function verify(value: string) {
+    if (verifying || resending) {
       return;
     }
     setVerifying(true);
@@ -48,17 +48,20 @@ export default function VerifyScreen() {
       setError(caught instanceof AuthActionError ? caught.message : 'Something went wrong.');
       setVerifying(false);
     }
-  };
+  }
 
-  const onChangeCode = (value: string) => {
+  function onChangeCode(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, CODE_LENGTH);
     setCode(digits);
     if (digits.length === CODE_LENGTH) {
       void verify(digits);
     }
-  };
+  }
 
-  const resend = async () => {
+  async function resend() {
+    if (verifying || resending || resendIn > 0) {
+      return;
+    }
     setResending(true);
     setError(null);
     setNotice(null);
@@ -72,7 +75,15 @@ export default function VerifyScreen() {
     } finally {
       setResending(false);
     }
-  };
+  }
+
+  function useDifferentEmail() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/sign-in');
+    }
+  }
 
   // Reached without an address (e.g. a restored route); start over from sign-in.
   if (!email) {
@@ -92,7 +103,7 @@ export default function VerifyScreen() {
         autoComplete="one-time-code"
         maxLength={CODE_LENGTH}
         autoFocus
-        editable={!verifying}
+        editable={!verifying && !resending}
         style={[authStyles.input, styles.code]}
       />
       <FormError message={error} />
@@ -100,7 +111,7 @@ export default function VerifyScreen() {
       <PrimaryButton
         label="Verify"
         busy={verifying}
-        disabled={code.length !== CODE_LENGTH}
+        disabled={code.length !== CODE_LENGTH || resending}
         onPress={() => void verify(code)}
       />
       <TextButton
@@ -110,8 +121,8 @@ export default function VerifyScreen() {
       />
       <TextButton
         label="Use a different email"
-        disabled={verifying}
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/sign-in'))}
+        disabled={verifying || resending}
+        onPress={useDifferentEmail}
       />
     </AuthScreen>
   );

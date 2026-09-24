@@ -1,4 +1,8 @@
-# Nexui auth: manual setup checklist, then code plan
+# Nexui auth: setup checklist and original implementation plan
+
+Authentication is implemented. This document retains the original setup decisions
+and implementation plan; statements below about the pre-auth scaffold are historical.
+For current code behavior, see [Authentication](../architecture/authentication.md).
 
 ## Context
 

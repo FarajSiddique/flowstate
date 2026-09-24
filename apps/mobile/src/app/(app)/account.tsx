@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -11,14 +11,14 @@ import { useSessionStore } from '@/stores/use-session-store';
 
 type Pending = 'signOut' | 'delete' | null;
 
-export default function AccountScreen() {
+export default function AccountScreen(): ReactElement {
   const email = useSessionStore((state) => state.session?.user.email);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Both actions end the session, and the root layout then returns to sign-in.
-  const onSignOut = async () => {
+  async function onSignOut() {
     setPending('signOut');
     setError(null);
     try {
@@ -27,9 +27,9 @@ export default function AccountScreen() {
       setError('Could not sign out. Try again.');
       setPending(null);
     }
-  };
+  }
 
-  const onDelete = async () => {
+  async function onDelete() {
     setPending('delete');
     setError(null);
     try {
@@ -42,7 +42,7 @@ export default function AccountScreen() {
       setError('Could not delete your account. Check your connection and try again.');
       setPending(null);
     }
-  };
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
