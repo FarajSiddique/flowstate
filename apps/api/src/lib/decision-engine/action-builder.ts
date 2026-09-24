@@ -5,7 +5,7 @@ import type {
   IntentHighlight,
   SearchScope,
   TaskPriority,
-} from '@flowstate/types';
+} from '@nexui/types';
 
 import { NOTE_PREFIX, type ActionCandidates, type Candidate } from './action-candidates.ts';
 

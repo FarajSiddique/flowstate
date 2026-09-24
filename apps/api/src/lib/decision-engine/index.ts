@@ -1,4 +1,4 @@
-import type { IntentDecision, IntentRequest } from '@flowstate/types';
+import type { IntentDecision, IntentRequest } from '@nexui/types';
 
 import { JevDecisionEngine } from './jev-decision-engine.ts';
 import { MockDecisionEngine } from './mock-decision-engine.ts';
@@ -18,7 +18,7 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
     engine = new MockDecisionEngine();
   } else if (provider === 'jev') {
     const apiKey = env.AI_GATEWAY_API_KEY?.trim();
-    const model = env.FLOWSTATE_INTENT_MODEL?.trim();
+    const model = env.NEXUI_INTENT_MODEL?.trim();
 
     if (!apiKey) {
       throw new DecisionEngineConfigurationError(
@@ -28,15 +28,15 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
 
     if (!model) {
       throw new DecisionEngineConfigurationError(
-        'FLOWSTATE_INTENT_MODEL is required for AI_PROVIDER=jev.',
+        'NEXUI_INTENT_MODEL is required for AI_PROVIDER=jev.',
       );
     }
 
-    const timeoutMs = Number(env.FLOWSTATE_INTENT_TIMEOUT_MS ?? '3500');
+    const timeoutMs = Number(env.NEXUI_INTENT_TIMEOUT_MS ?? '3500');
 
     if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 4500) {
       throw new DecisionEngineConfigurationError(
-        'FLOWSTATE_INTENT_TIMEOUT_MS must be an integer from 1 to 4500 (below the mobile timeout).',
+        'NEXUI_INTENT_TIMEOUT_MS must be an integer from 1 to 4500 (below the mobile timeout).',
       );
     }
 

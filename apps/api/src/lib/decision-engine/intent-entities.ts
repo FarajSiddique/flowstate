@@ -1,4 +1,4 @@
-import type { Intent, IntentEntities } from '@flowstate/types';
+import type { Intent, IntentEntities } from '@nexui/types';
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);

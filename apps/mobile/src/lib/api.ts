@@ -7,7 +7,7 @@ import {
   type IntentContext,
   type IntentDecision,
   type IntentRequest,
-} from '@flowstate/types';
+} from '@nexui/types';
 
 const apiUrl = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 

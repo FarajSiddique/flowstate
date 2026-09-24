@@ -1,4 +1,4 @@
-import type { IntentDecision } from '@flowstate/types';
+import type { IntentDecision } from '@nexui/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { classifyIntent } from './api';

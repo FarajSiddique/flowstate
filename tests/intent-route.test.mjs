@@ -8,7 +8,7 @@ function request(body) {
 }
 
 function configure(t, values = {}) {
-  for (const key of ['AI_PROVIDER', 'AI_GATEWAY_API_KEY', 'FLOWSTATE_INTENT_MODEL', 'NODE_ENV']) {
+  for (const key of ['AI_PROVIDER', 'AI_GATEWAY_API_KEY', 'NEXUI_INTENT_MODEL', 'NODE_ENV']) {
     const previous = process.env[key];
     if (values[key] === undefined) delete process.env[key];
     else process.env[key] = values[key];
@@ -43,7 +43,7 @@ test('route selects Jev and safely returns UNKNOWN when Gateway rejects the call
   configure(t, {
     AI_PROVIDER: 'jev',
     AI_GATEWAY_API_KEY: 'test-secret',
-    FLOWSTATE_INTENT_MODEL: 'typesafe-ai/jev',
+    NEXUI_INTENT_MODEL: 'typesafe-ai/jev',
   });
   const gateway = t.mock.method(
     globalThis,

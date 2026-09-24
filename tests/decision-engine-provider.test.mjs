@@ -6,7 +6,7 @@ import { getDecisionEngine } from '../apps/api/src/lib/decision-engine/index.ts'
 const config = {
   AI_PROVIDER: 'jev',
   AI_GATEWAY_API_KEY: 'test-secret',
-  FLOWSTATE_INTENT_MODEL: 'typesafe-ai/jev',
+  NEXUI_INTENT_MODEL: 'typesafe-ai/jev',
 };
 
 // 22:30 on Sep 23 in New York, 02:30 on Sep 24 in UTC.
@@ -46,13 +46,13 @@ test('jev selection requires explicit server configuration and rejects invalid p
     /AI_GATEWAY_API_KEY/,
   );
   assert.throws(
-    () => getDecisionEngine({ ...config, FLOWSTATE_INTENT_MODEL: '' }),
-    /FLOWSTATE_INTENT_MODEL/,
+    () => getDecisionEngine({ ...config, NEXUI_INTENT_MODEL: '' }),
+    /NEXUI_INTENT_MODEL/,
   );
   for (const timeout of ['0', '-10', 'NaN', '1.5', '5000']) {
     assert.throws(
-      () => getDecisionEngine({ ...config, FLOWSTATE_INTENT_TIMEOUT_MS: timeout }),
-      /FLOWSTATE_INTENT_TIMEOUT_MS/,
+      () => getDecisionEngine({ ...config, NEXUI_INTENT_TIMEOUT_MS: timeout }),
+      /NEXUI_INTENT_TIMEOUT_MS/,
     );
   }
 });

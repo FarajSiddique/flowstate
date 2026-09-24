@@ -1,4 +1,4 @@
-import type { HighlightField, Intent, IntentDecision } from '@flowstate/types';
+import type { HighlightField, Intent, IntentDecision } from '@nexui/types';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { previewEmphasis, type PreviewEmphasis } from '@/lib/intent-confidence';

@@ -1,1 +1,1 @@
-{ "extends": "@flowstate/config/typescript/base.json", "include": ["src/**/*.ts"] }
+{ "extends": "@nexui/config/typescript/base.json", "include": ["src/**/*.ts"] }

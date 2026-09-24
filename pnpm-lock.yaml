@@ -8,7 +8,7 @@ importers:
 
   .:
     devDependencies:
-      '@flowstate/config':
+      '@nexui/config':
         specifier: workspace:*
         version: link:packages/config
       prettier:
@@ -20,7 +20,7 @@ importers:
 
   apps/api:
     dependencies:
-      '@flowstate/types':
+      '@nexui/types':
         specifier: workspace:*
         version: link:../../packages/types
       '@supabase/supabase-js':
@@ -42,7 +42,7 @@ importers:
         specifier: ^4.6.5
         version: 4.6.5
     devDependencies:
-      '@flowstate/config':
+      '@nexui/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@types/node':
@@ -75,7 +75,7 @@ importers:
       '@expo-google-fonts/bricolage-grotesque':
         specifier: ^0.4.1
         version: 0.4.1
-      '@flowstate/types':
+      '@nexui/types':
         specifier: workspace:*
         version: link:../../packages/types
       '@tanstack/react-query':
@@ -130,7 +130,7 @@ importers:
         specifier: ^5.0.8
         version: 5.0.15(@types/react@19.2.18)(react@19.2.3)
     devDependencies:
-      '@flowstate/config':
+      '@nexui/config':
         specifier: workspace:*
         version: link:../../packages/config
       '@react-native/metro-config':
@@ -180,7 +180,7 @@ importers:
         specifier: ^4.1.13
         version: 4.6.5
     devDependencies:
-      '@flowstate/config':
+      '@nexui/config':
         specifier: workspace:*
         version: link:../config
       eslint:

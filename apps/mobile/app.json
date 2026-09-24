@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "flowstate",
-    "slug": "flowstate",
+    "name": "nexui",
+    "slug": "nexui",
     "version": "1.0.0",
-    "scheme": "flowstate",
+    "scheme": "nexui",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "plugins": ["expo-router", "expo-font"],

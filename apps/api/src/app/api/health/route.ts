@@ -1,4 +1,4 @@
-import { healthResponseSchema, type HealthResponse } from '@flowstate/types';
+import { healthResponseSchema, type HealthResponse } from '@nexui/types';
 
 export function GET() {
   const body: HealthResponse = { status: 'ok' };

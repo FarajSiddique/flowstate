@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 
 export const metadata: Metadata = {
-  title: 'flowstate API',
-  description: 'The flowstate backend.',
+  title: 'nexui API',
+  description: 'The nexui backend.',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

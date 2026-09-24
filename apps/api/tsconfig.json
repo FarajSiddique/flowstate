@@ -1,5 +1,5 @@
 {
-  "extends": "@flowstate/config/typescript/base.json",
+  "extends": "@nexui/config/typescript/base.json",
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "lib": ["DOM", "DOM.Iterable", "ES2022"],

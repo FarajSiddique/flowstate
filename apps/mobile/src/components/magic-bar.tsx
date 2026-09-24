@@ -1,4 +1,4 @@
-import type { IntentHighlight } from '@flowstate/types';
+import type { IntentHighlight } from '@nexui/types';
 import { useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
@@ -15,7 +15,7 @@ import { highlightSegments } from '@/lib/highlight-segments';
 import { colors, fonts, markers } from '@/lib/theme';
 
 // The input sits over a text layer with identical metrics. That layer paints marker
-// colors behind the words Flowstate used, so the user's own sentence explains the draft.
+// colors behind the words Nexui used, so the user's own sentence explains the draft.
 export function MagicBar({
   value,
   onChangeText,

@@ -1,4 +1,4 @@
-# flowstate
+# nexui
 
 A small, typed foundation for an AI-native productivity app. The first product
 slice proves **natural-language input → typed intent → deterministic mobile UI**.
@@ -88,8 +88,8 @@ Configure only the API's ignored `apps/api/.env.local`:
 ```dotenv
 AI_PROVIDER=jev
 AI_GATEWAY_API_KEY=<your Vercel AI Gateway key>
-FLOWSTATE_INTENT_MODEL=typesafe-ai/jev
-FLOWSTATE_INTENT_TIMEOUT_MS=3500
+NEXUI_INTENT_MODEL=typesafe-ai/jev
+NEXUI_INTENT_TIMEOUT_MS=3500
 ```
 
 Restart `pnpm dev:api` after changing configuration. `AI_PROVIDER=mock` (also

@@ -1,4 +1,4 @@
-import type { HighlightField } from '@flowstate/types';
+import type { HighlightField } from '@nexui/types';
 
 export const colors = {
   page: '#FFFFFF',

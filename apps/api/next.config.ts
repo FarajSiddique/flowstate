@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  transpilePackages: ['@flowstate/types'],
+  transpilePackages: ['@nexui/types'],
 };
 
 export default nextConfig;

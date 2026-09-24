@@ -1,4 +1,4 @@
-import type { DateRange, LocalDateTime, SearchScope, TaskPriority } from '@flowstate/types';
+import type { DateRange, LocalDateTime, SearchScope, TaskPriority } from '@nexui/types';
 
 export function displayDate(date?: string): string | null {
   return date ? date.charAt(0).toUpperCase() + date.slice(1) : null;

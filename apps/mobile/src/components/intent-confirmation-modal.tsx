@@ -1,4 +1,4 @@
-import type { HighlightField, IntentDecision } from '@flowstate/types';
+import type { HighlightField, IntentDecision } from '@nexui/types';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,

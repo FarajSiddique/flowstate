@@ -1,14 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
-    "@flowstate/api#dev": {
+    "@nexui/api#dev": {
       "cache": false,
       "persistent": true,
       "passThroughEnv": [
         "AI_PROVIDER",
         "AI_GATEWAY_API_KEY",
-        "FLOWSTATE_INTENT_MODEL",
-        "FLOWSTATE_INTENT_TIMEOUT_MS",
+        "NEXUI_INTENT_MODEL",
+        "NEXUI_INTENT_TIMEOUT_MS",
         "NEXT_PUBLIC_*",
         "SUPABASE_*",
         "CI"

@@ -1,4 +1,4 @@
-import { searchScopeSchema, taskPrioritySchema } from '@flowstate/types';
+import { searchScopeSchema, taskPrioritySchema } from '@nexui/types';
 import { z } from 'zod';
 
 import type { ActionCandidates, Candidate } from './action-candidates.ts';

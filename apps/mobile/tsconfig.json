@@ -1,5 +1,5 @@
 {
-  "extends": ["expo/tsconfig.base", "@flowstate/config/typescript/base.json"],
+  "extends": ["expo/tsconfig.base", "@nexui/config/typescript/base.json"],
   "compilerOptions": {
     "lib": ["DOM", "ES2022"],
     "paths": { "@/*": ["./src/*"] }

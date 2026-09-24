@@ -1,1 +1,1 @@
-export { default } from '@flowstate/config/eslint';
+export { default } from '@nexui/config/eslint';

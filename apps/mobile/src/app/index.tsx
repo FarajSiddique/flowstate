@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import type { IntentDecision } from '@flowstate/types';
+import type { IntentDecision } from '@nexui/types';
 import { useState } from 'react';
 import { Keyboard, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +36,7 @@ export default function HomeScreen() {
         <View style={styles.content}>
           <View style={styles.top}>
             <Text accessibilityRole="header" style={styles.brand}>
-              flowstate
+              nexui
             </Text>
             <View style={styles.status}>
               <View style={[styles.dot, { backgroundColor: statusColor }]} />
@@ -48,9 +48,7 @@ export default function HomeScreen() {
               </Text>
             </View>
           </View>
-          <Text style={styles.subtitle}>
-            Type a plan. Flowstate marks the details it picked up.
-          </Text>
+          <Text style={styles.subtitle}>Type a plan. Nexui marks the details it picked up.</Text>
 
           <MagicBar value={text} onChangeText={setText} highlights={shown?.highlights} />
 
@@ -76,7 +74,7 @@ export default function HomeScreen() {
           {health.isError ? (
             <View style={styles.offline}>
               <Text style={styles.offlineText}>
-                Flowstate can’t reach its server. Check that the API is running, then try again.
+                Nexui can’t reach its server. Check that the API is running, then try again.
               </Text>
               <Pressable
                 accessibilityRole="button"

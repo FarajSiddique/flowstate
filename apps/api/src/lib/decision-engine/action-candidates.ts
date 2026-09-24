@@ -1,4 +1,4 @@
-import type { DateRange, IntentContext, LocalDateTime } from '@flowstate/types';
+import type { DateRange, IntentContext, LocalDateTime } from '@nexui/types';
 import * as chrono from 'chrono-node';
 
 // Code over-finds source spans; Jev only selects among them (or none). Values are

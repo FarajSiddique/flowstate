@@ -1,4 +1,4 @@
-import type { IntentDecision } from '@flowstate/types';
+import type { IntentDecision } from '@nexui/types';
 
 export const HIGH_CONFIDENCE = 0.85;
 export const MEDIUM_CONFIDENCE = 0.6;

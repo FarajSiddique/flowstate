@@ -1,4 +1,4 @@
-import type { HighlightField, IntentHighlight } from '@flowstate/types';
+import type { HighlightField, IntentHighlight } from '@nexui/types';
 
 export interface TextSegment {
   text: string;

@@ -1,4 +1,4 @@
-import { intentRequestSchema, intentResponseSchema } from '@flowstate/types';
+import { intentRequestSchema, intentResponseSchema } from '@nexui/types';
 
 import {
   DecisionEngineConfigurationError,

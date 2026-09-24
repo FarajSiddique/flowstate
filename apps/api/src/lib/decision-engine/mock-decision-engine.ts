@@ -1,4 +1,4 @@
-import type { IntentDecision, IntentRequest } from '@flowstate/types';
+import type { IntentDecision, IntentRequest } from '@nexui/types';
 
 import { buildHighlights, buildIntentAction, type FieldSelections } from './action-builder.ts';
 import {

@@ -1,5 +1,5 @@
 {
-  "name": "flowstate",
+  "name": "nexui",
   "private": true,
   "packageManager": "pnpm@10.34.5",
   "engines": {
@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "turbo run dev",
-    "dev:mobile": "pnpm --filter @flowstate/mobile dev",
-    "dev:api": "pnpm --filter @flowstate/api dev",
-    "dev:web": "pnpm --filter @flowstate/mobile web",
+    "dev:mobile": "pnpm --filter @nexui/mobile dev",
+    "dev:api": "pnpm --filter @nexui/api dev",
+    "dev:web": "pnpm --filter @nexui/mobile web",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
@@ -18,9 +18,9 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@flowstate/config": "workspace:*",
+    "@nexui/config": "workspace:*",
     "prettier": "^3.6.2",
     "turbo": "^2.5.8"
   },
-  "prettier": "@flowstate/config/prettier"
+  "prettier": "@nexui/config/prettier"
 }
