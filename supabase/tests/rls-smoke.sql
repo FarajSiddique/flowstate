@@ -14,19 +14,57 @@ select set_config(
   true
 );
 
-select public.record_intent(
-  'call mom tomorrow at 3',
-  null,
-  '{"intent":"CREATE_TASK","confidence":0.9,"entities":{}}',
-  'confirmed',
-  '{"kind":"CREATE_TASK","title":"Call mom","due":{"date":"2026-09-25","time":"15:00"},"priority":"normal"}',
-  'America/New_York'
+select set_config(
+  'rls_smoke.create_event_id',
+  public.record_intent(
+    'call mom tomorrow at 3',
+    null,
+    '{"intent":"CREATE_TASK","confidence":0.9,"entities":{}}',
+    'confirmed',
+    '{"kind":"CREATE_TASK","title":"Call mom","due":{"date":"2026-09-25","time":"15:00"},"priority":"normal"}',
+    'America/New_York',
+    'form'
+  ) ->> 'eventId',
+  true
 );
 
 do $$
 begin
   assert (select count(*) from public.timeline_page(50)) = 1, 'owner should see their task';
   assert (select count(*) from public.intent_events) = 1, 'owner should see their log row';
+end;
+$$;
+
+do $$
+declare
+  owned_task uuid := (select id from public.tasks limit 1);
+  logged jsonb;
+begin
+  logged := public.record_intent(
+    'done with call mom',
+    null,
+    '{"intent":"COMPLETE","confidence":0.9,"entities":{}}',
+    'confirmed',
+    jsonb_build_object(
+      'kind', 'COMPLETE',
+      'phrase', 'call mom',
+      'target', jsonb_build_object('kind', 'task', 'id', owned_task, 'title', 'Call mom', 'when', null),
+      'alternatives', '[]'::jsonb
+    ),
+    'America/New_York',
+    'instant'
+  );
+  assert (logged #>> '{item,completed_at}') is not null, 'complete should stamp completed_at';
+  assert (public.undo_intent((logged ->> 'eventId')::uuid) ->> 'completed_at') is null,
+    'undo should reopen the task';
+
+  begin
+    perform public.undo_intent((logged ->> 'eventId')::uuid);
+    raise exception 'undoing twice must be refused';
+  exception
+    when sqlstate 'NXU09' then
+      null;
+  end;
 end;
 $$;
 
@@ -59,6 +97,30 @@ begin
       current_setting('rls_smoke.task_id')::uuid
     );
     raise exception 'other user must not link a log row to it';
+  exception
+    when insufficient_privilege then
+      null;
+  end;
+
+  begin
+    perform public.undo_intent(current_setting('rls_smoke.create_event_id')::uuid);
+    raise exception 'other user must not undo it';
+  exception
+    when sqlstate 'NXU04' then
+      null;
+  end;
+
+  delete from public.tasks;
+  get diagnostics changed = row_count;
+  assert changed = 0, 'other user must not delete it';
+
+  update public.intent_events set undone_at = now();
+  get diagnostics changed = row_count;
+  assert changed = 0, 'other user must not mark the log undone';
+
+  begin
+    update public.intent_events set text = 'edited';
+    raise exception 'log text must stay append-only';
   exception
     when insufficient_privilege then
       null;
