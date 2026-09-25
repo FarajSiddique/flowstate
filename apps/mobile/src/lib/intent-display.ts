@@ -1,4 +1,4 @@
-import type { DateRange, LocalDateTime, SearchScope, TaskPriority } from '@nexui/types';
+import type { DateRange, LocalDateTime, SavedItem, SearchScope, TaskPriority } from '@nexui/types';
 
 export function displayDate(date?: string): string | null {
   return date ? date.charAt(0).toUpperCase() + date.slice(1) : null;
@@ -80,3 +80,30 @@ export const SCOPE_OPTIONS = [
   { value: 'events', label: 'Events' },
   { value: 'notes', label: 'Notes' },
 ] as const satisfies readonly { value: SearchScope; label: string }[];
+
+const KIND_LABELS = { task: 'Task', event: 'Event', note: 'Note' } as const;
+
+/** One line under a timeline row: kind, then when (or "Unscheduled"). */
+export function displayItemMeta(item: SavedItem): string {
+  if (item.kind === 'note') {
+    return KIND_LABELS.note;
+  }
+
+  const when = item.kind === 'task' ? item.due : item.start;
+
+  if (!when) {
+    return `${KIND_LABELS[item.kind]} · Unscheduled`;
+  }
+
+  const parts = [KIND_LABELS[item.kind], displayLocalDate(when.date)];
+
+  if (when.time) {
+    parts.push(displayTime(when.time) ?? when.time);
+  }
+
+  if (item.kind === 'event') {
+    parts.push(displayDuration(item.durationMin));
+  }
+
+  return parts.join(' · ');
+}
