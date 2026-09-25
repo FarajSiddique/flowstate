@@ -1,0 +1,38 @@
+[
+  {
+    "kind": "task",
+    "id": "00000000-0000-4000-8000-000000000001",
+    "title": "Finish the report",
+    "when": { "date": "2026-01-16", "time": null }
+  },
+  {
+    "kind": "task",
+    "id": "00000000-0000-4000-8000-000000000002",
+    "title": "Call mom",
+    "when": null
+  },
+  {
+    "kind": "event",
+    "id": "00000000-0000-4000-8000-000000000003",
+    "title": "Dentist appointment",
+    "when": { "date": "2026-01-16", "time": "15:00" }
+  },
+  {
+    "kind": "event",
+    "id": "00000000-0000-4000-8000-000000000004",
+    "title": "Team standup",
+    "when": { "date": "2026-01-16", "time": "09:30" }
+  },
+  {
+    "kind": "event",
+    "id": "00000000-0000-4000-8000-000000000005",
+    "title": "Standup retro",
+    "when": { "date": "2026-01-19", "time": "10:00" }
+  },
+  {
+    "kind": "note",
+    "id": "00000000-0000-4000-8000-000000000006",
+    "title": "Trip notes",
+    "when": null
+  }
+]

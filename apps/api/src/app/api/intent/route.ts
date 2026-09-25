@@ -1,10 +1,13 @@
 import { intentRequestSchema, intentResponseSchema } from '@nexui/types';
 
+import { resolveReference } from '../../../lib/decision-engine/action-candidates.ts';
 import {
   DecisionEngineConfigurationError,
   getDecisionEngine,
 } from '../../../lib/decision-engine/index.ts';
 import { corsHeaders, jsonError, preflight } from '../../../lib/http/responses.ts';
+import { createTargetLookup } from '../../../lib/records/targets.ts';
+import { getUserClient, SupabaseConfigurationError } from '../../../lib/supabase/clients.ts';
 import { verifyRequest } from '../../../lib/supabase/verify-request.ts';
 
 const headers = corsHeaders(['POST'], ['Authorization', 'Content-Type']);
@@ -39,13 +42,18 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const decision = await getDecisionEngine().classifyIntent(parsed.data);
+    const lookup = createTargetLookup(
+      getUserClient(user.accessToken),
+      resolveReference(parsed.data.context).today,
+    );
+    const decision = await getDecisionEngine().classifyIntent(parsed.data, lookup);
 
     return Response.json(intentResponseSchema.parse(decision), { headers });
   } catch (error) {
     console.error(
       '[intent]',
-      error instanceof DecisionEngineConfigurationError
+      error instanceof DecisionEngineConfigurationError ||
+        error instanceof SupabaseConfigurationError
         ? error.message
         : 'Intent prediction failed unexpectedly.',
     );

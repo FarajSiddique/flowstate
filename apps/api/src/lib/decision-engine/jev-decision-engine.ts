@@ -9,7 +9,19 @@ import {
 
 import { buildHighlights, buildIntentAction } from './action-builder.ts';
 import { findActionCandidates, resolveReference } from './action-candidates.ts';
-import { buildFieldQuestions, readFieldSelections } from './action-questions.ts';
+import {
+  buildFieldQuestions,
+  buildTargetQuestion,
+  readFieldSelections,
+  readTargetChoice,
+} from './action-questions.ts';
+import {
+  buildChangeAction,
+  findChangeMatch,
+  NO_TARGETS,
+  shortlistTargets,
+  type TargetLookup,
+} from './change-actions.ts';
 import type { DecisionEngine } from './index';
 import { extractIntentEntities } from './intent-entities.ts';
 
@@ -47,6 +59,12 @@ const questions = {
         'Save a thought or idea: write down idea about AI sports coach; note that we should redesign onboarding; save this thought about adaptive interfaces.',
       SEARCH:
         'Find existing information: find my architecture notes; search for project proposal; where is my workout plan.',
+      COMPLETE:
+        'Mark an existing to-do, event or note as finished: done with the report; finished call mom; mark the dentist appointment as done.',
+      RESCHEDULE:
+        'Move an existing to-do or event to a new date or time: push the dentist to Friday at 4; move standup to 10; reschedule call mom to tomorrow.',
+      APPEND:
+        'Add text to an existing note: add "bring charger" to trip notes; append passport copy to my trip note; add milk to the grocery note.',
       UNKNOWN:
         'No actionable intent, unclear request, greeting or nonsense: hello; what is up; asdf banana purple.',
     },
@@ -56,9 +74,9 @@ const questions = {
     instructions:
       'Does `text` name a target for the requested action? A target is a task to do, a person or appointment to meet, a topic to save as a note, or something to search for. Judge only whether a target is present, not whether the action can be completed now. A note topic alone is sufficient; no full note body is needed. Dates and times are optional.',
     criteria: {
-      true: 'An action and a target are present: meet Sarah tomorrow; meet Sarah tomorrow at 2; remind me to submit my application tomorrow; write down idea about AI sports coach; find my architecture notes.',
+      true: 'An action and a target are present: meet Sarah tomorrow; meet Sarah tomorrow at 2; remind me to submit my application tomorrow; write down idea about AI sports coach; find my architecture notes; done with the report; push the dentist to Friday; add "bring charger" to trip notes.',
       false:
-        'No action or no target: meet; remind me to; write down; find my; hello; asdf banana purple.',
+        'No action or no target: meet; remind me to; write down; find my; hello; asdf banana purple; done with; move to Friday.',
     },
   },
 };
@@ -72,15 +90,15 @@ export class JevDecisionEngine implements DecisionEngine {
     this.gatewayFetch = gatewayFetch;
   }
 
-  async classifyIntent({ text: rawText, context }: IntentRequest): Promise<IntentDecision> {
+  async classifyIntent(
+    { text: rawText, context }: IntentRequest,
+    lookup: TargetLookup = NO_TARGETS,
+  ): Promise<IntentDecision> {
     // Candidate offsets index this normalized text, which the action builder also uses.
     const text = rawText.trim().replace(/\s+/g, ' ');
-    const candidates = findActionCandidates(text, resolveReference(context));
-    const allQuestions = { ...questions, ...buildFieldQuestions(candidates) };
-
-    if (process.env.NODE_ENV === 'development') {
-      console.info(`[intent] provider=jev questions=${Object.keys(allQuestions).length}`);
-    }
+    const reference = resolveReference(context);
+    const candidates = findActionCandidates(text, reference);
+    const change = findChangeMatch(text, reference);
 
     const controller = new AbortController();
     let failure = 'network_error';
@@ -95,6 +113,20 @@ export class JevDecisionEngine implements DecisionEngine {
         }, this.config.timeoutMs);
       });
       const request = async () => {
+        const shortlist = change ? await shortlistTargets(lookup, change) : [];
+        const allQuestions: Record<string, unknown> = {
+          ...questions,
+          ...buildFieldQuestions(candidates),
+        };
+
+        if (shortlist.length > 0) {
+          allQuestions.target = buildTargetQuestion(shortlist);
+        }
+
+        if (process.env.NODE_ENV === 'development') {
+          console.info(`[intent] provider=jev questions=${Object.keys(allQuestions).length}`);
+        }
+
         // Documented evaluation API: https://vercel.com/docs/ai-gateway/modalities/evaluation
         const response = await this.gatewayFetch('https://ai-gateway.vercel.sh/v1/evaluate', {
           method: 'POST',
@@ -121,7 +153,17 @@ export class JevDecisionEngine implements DecisionEngine {
         const { answers } = evaluationSchema.parse(await response.json());
         const { choice, confidence, probabilities } = answers.intent;
         const selections = readFieldSelections(answers, candidates);
-        const action = buildIntentAction(choice, text, candidates, selections);
+        const action =
+          change && change.intent === choice
+            ? buildChangeAction(
+                change,
+                shortlist,
+                shortlist.length > 0
+                  ? readTargetChoice((answers as Record<string, unknown>).target, shortlist)
+                  : { type: 'none' },
+                reference,
+              )
+            : buildIntentAction(choice, text, candidates, selections);
         const highlights = action ? buildHighlights(choice, text, candidates, selections) : [];
 
         return intentResponseSchema.parse({
