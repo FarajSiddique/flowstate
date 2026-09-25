@@ -125,20 +125,35 @@ export function ItemFormSheet({
     ],
   }[layout];
 
+  // A save in flight must finish (and log its own outcome) before the sheet can close.
+  const close = () => {
+    if (busy) {
+      return;
+    }
+
+    onClose();
+  };
+
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}
       >
-        <Pressable accessibilityLabel="Close form" onPress={onClose} style={styles.backdrop} />
+        <Pressable accessibilityLabel="Close form" onPress={close} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.heading}>
               {heading}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              onPress={close}
+            >
               <Text style={styles.close}>Close</Text>
             </Pressable>
           </View>
