@@ -2,6 +2,7 @@ export const USER_ID = '6f1c9a52-0d0e-4b8f-9f4a-2f0d6f2c9a11';
 export const TASK_ID = '0b7c1f8e-2d4a-4c6b-9e1f-3a5d7c9b1e2f';
 export const EVENT_ID = '1c8d2a9f-3e5b-4d7c-8f2a-4b6e8d0c2f3a';
 export const NOTE_ID = '2d9e3b0a-4f6c-4e8d-a03b-5c7f9e1d3a4b';
+export const LOG_ID = '3e0f4c1b-5a7d-4f9e-b14c-6d8a0f2e4b5c';
 const STAMP = '2026-09-24T12:00:00.123456+00:00';
 const common = { user_id: USER_ID, completed_at: null, created_at: STAMP, updated_at: STAMP };
 

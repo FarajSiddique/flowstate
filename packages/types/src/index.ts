@@ -416,9 +416,17 @@ export const intentEventRequestSchema = z
 
 export type IntentEventRequest = z.infer<typeof intentEventRequestSchema>;
 
-export const intentEventResponseSchema = z.object({ item: savedItemSchema.nullable() });
+export const intentEventResponseSchema = z.object({
+  eventId: itemIdSchema,
+  item: savedItemSchema.nullable(),
+});
 
 export type IntentEventResponse = z.infer<typeof intentEventResponseSchema>;
+
+// Undo returns the restored item, or null when a newly created item was removed.
+export const undoResponseSchema = z.object({ item: savedItemSchema.nullable() });
+
+export type UndoResponse = z.infer<typeof undoResponseSchema>;
 
 export const timelineQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
