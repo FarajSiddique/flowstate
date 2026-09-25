@@ -49,7 +49,7 @@ A single `useMutation(recordIntentEvent)` sends `via: 'instant'`. While it is
 pending the card shows a spinner and ignores further presses. On success the app
 clears the bar (only if the user hasn't typed something new meanwhile), invalidates
 the `['timeline']` query, and shows the Undo card with a message from
-`undoMessage()` (e.g. "Added: Call mom · Tomorrow", "Moved Dentist to Fri 4:00 PM").
+`undoMessage()` (e.g. "Added: Call mom · Tomorrow", "Moved Dentist · Fri 4:00 PM").
 On failure the text stays and the card shows the error, including the server's 409
 message when the target changed underneath the action.
 
