@@ -102,7 +102,8 @@ const SCOPE_KINDS = {
 
 const SEARCH_LIMIT = 50;
 
-// Escapes LIKE wildcards so "50%" matches the literal text.
+// Escapes LIKE wildcards so "50%" matches the literal text. PostgREST turns every '*'
+// into '%' before Postgres sees it (even "\*"), so '*' stays a wildcard.
 function containsPattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }

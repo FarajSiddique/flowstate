@@ -13,6 +13,8 @@ API; the mobile app never queries the database.
    `sort_at desc, id desc`, opaque cursor). Undated items sort by creation time.
 4. `PATCH /api/items/:kind/:id` edits fields and/or sets `completed`.
 5. A confirmed SEARCH draft calls `GET /api/search` (`ilike` over `timeline_items`).
+   `%`, `_` and `\` match literally. `*` still acts as a wildcard: PostgREST rewrites
+   every `*` in a like pattern to `%`, and escaping it does not help.
 
 ## Ownership
 

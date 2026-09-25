@@ -33,6 +33,14 @@ test('search matches typed text literally within scope and dates', async (t) => 
   assert.equal(url.searchParams.get('limit'), '50');
 });
 
+// PostgREST maps every '*' in a like pattern to '%', escaped or not, so it stays a wildcard.
+test('an asterisk passes through as a PostgREST wildcard', async (t) => {
+  const upstream = mockSupabaseAuth(t, async () => Response.json([]));
+  assert.equal((await GET(request({ q: 'a*b' }))).status, 200);
+  const { url } = upstreamCall(upstream);
+  assert.equal(url.searchParams.get('search_text'), 'ilike.%a*b%');
+});
+
 test('an empty query or reversed range is rejected without a query', async (t) => {
   const upstream = mockSupabaseAuth(t);
   const empty = await GET(request({ q: '  ' }));
