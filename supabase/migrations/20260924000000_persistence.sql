@@ -111,8 +111,23 @@ create policy "Owners change notes" on public.notes for update to authenticated
 
 create policy "Owners read their log" on public.intent_events for select to authenticated
   using (user_id = (select auth.uid()));
+-- A log row may only point at the caller's own items (FK checks alone ignore RLS).
 create policy "Owners add to their log" on public.intent_events for insert to authenticated
-  with check (user_id = (select auth.uid()));
+  with check (
+    user_id = (select auth.uid())
+    and (task_id is null or exists (
+      select 1 from public.tasks t
+      where t.id = intent_events.task_id and t.user_id = (select auth.uid())
+    ))
+    and (event_id is null or exists (
+      select 1 from public.events e
+      where e.id = intent_events.event_id and e.user_id = (select auth.uid())
+    ))
+    and (note_id is null or exists (
+      select 1 from public.notes n
+      where n.id = intent_events.note_id and n.user_id = (select auth.uid())
+    ))
+  );
 
 -- Supabase grants everything to anon and authenticated by default; narrow it.
 revoke all on public.tasks, public.events, public.notes, public.intent_events
