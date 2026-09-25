@@ -8,7 +8,7 @@ import {
   type IntentDecision,
   type SavedItem,
 } from '@nexui/types';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -58,6 +58,15 @@ export default function HomeScreen() {
     refetchInterval: 15_000,
   });
   const queryClient = useQueryClient();
+  // Read inside `commit`'s onSuccess instead of closing over `text`, whose value there
+  // would otherwise be stale from when the mutation was created.
+  const textRef = useRef(text);
+
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
+  const submitting = useRef(false);
   const commit = useMutation({
     mutationFn: ({ decision: logged, action, text: typed }: Commit) =>
       recordIntentEvent({
@@ -67,9 +76,14 @@ export default function HomeScreen() {
         action,
         via: 'instant',
       }),
-    onSuccess: ({ eventId }, { action }) => {
+    onSuccess: ({ eventId }, { action, text: committed }) => {
       void queryClient.invalidateQueries({ queryKey: TIMELINE_KEY });
-      setText('');
+
+      // Leaves text the user typed since the commit alone, instead of erasing it.
+      if (textRef.current === committed) {
+        setText('');
+      }
+
       showUndo(eventId, undoMessage(action));
     },
   });
@@ -79,7 +93,12 @@ export default function HomeScreen() {
     : null;
 
   function changeText(value: string) {
-    commit.reset();
+    // Only clear a failed commit's error; clearing `isPending` here would re-enable the
+    // buttons and let a second Enter or tap fire while the first commit is in flight.
+    if (commit.isError) {
+      commit.reset();
+    }
+
     setText(value);
   }
 
@@ -129,25 +148,32 @@ export default function HomeScreen() {
   }
 
   async function submitFromBar() {
-    if (commit.isPending) {
+    if (commit.isPending || submitting.current) {
       return;
     }
+
+    submitting.current = true;
 
     const typed = text.trim();
-    const ready = await resolveNow();
-    const step = submitStep(ready);
 
-    if (!ready?.action || step === 'ignore') {
-      return;
+    try {
+      const ready = await resolveNow();
+      const step = submitStep(ready);
+
+      if (!ready?.action || step === 'ignore') {
+        return;
+      }
+
+      if (step === 'commit') {
+        commit.mutate({ decision: ready, action: ready.action, text: typed });
+
+        return;
+      }
+
+      review(ready);
+    } finally {
+      submitting.current = false;
     }
-
-    if (step === 'commit') {
-      commit.mutate({ decision: ready, action: ready.action, text: typed });
-
-      return;
-    }
-
-    review(ready);
   }
 
   const status = health.isPending ? 'Checking…' : health.isError ? 'Unreachable' : 'Connected';

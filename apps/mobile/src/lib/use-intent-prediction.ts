@@ -42,7 +42,12 @@ export function useIntentPrediction() {
     activeController.current = controller;
     setPrediction({ text: value, decision: null, isPredicting: true, error: null });
 
-    const promise = classifyIntent({ text: value.trim() }, controller.signal)
+    // Declared so `.finally` can compare against it once assigned below, clearing
+    // `pending` after this promise settles either way so a failed prediction can be
+    // retried by pressing Return instead of resolving to a stale, never-cleared entry.
+    let promise: Promise<IntentDecision | null>;
+
+    promise = classifyIntent({ text: value.trim() }, controller.signal)
       .then((decision) => {
         if (requestGeneration !== generation.current) {
           return null;
@@ -73,6 +78,10 @@ export function useIntentPrediction() {
       .finally(() => {
         if (activeController.current === controller) {
           activeController.current = null;
+        }
+
+        if (pending.current?.promise === promise) {
+          pending.current = null;
         }
       });
 
