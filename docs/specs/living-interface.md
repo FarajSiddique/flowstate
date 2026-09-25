@@ -6,7 +6,7 @@
 
 ## Context
 
-Today Nexui turns one line of text into a draft task, event, note or search. The engine only gets `now` and `timeZone`, and nothing is saved. The mission is "the right action at the right moment, without navigating or prompting". To get there, the app needs memory, it needs to act before being asked, and it needs to shrink the steps between an intent and its result. These are ideas to think over, not an implementation plan. They are ordered by how much they depend on each other.
+Today Nexui turns one line of text into a draft task, event, note or search. The engine only gets `now` and `timeZone`. Confirmed drafts are now saved: tasks, events and notes go to their tables, and every confirmed or dismissed draft is logged in `intent_events`. The mission is "the right action at the right moment, without navigating or prompting". To get there, the app needs memory, it needs to act before being asked, and it needs to shrink the steps between an intent and its result. These are ideas to think over, not an implementation plan. They are ordered by how much they depend on each other.
 
 ## Foundation: log every intent, not just the saved objects
 

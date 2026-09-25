@@ -23,6 +23,15 @@ user's JWT. RLS policies (`user_id = auth.uid()`) scope every table, the view
 (`security_invoker`) and both functions (`security invoker`). A row owned by someone
 else looks the same as a missing row (404). Deleting the account cascades to all rows.
 
+## Retention and scale
+
+`intent_events` keeps the raw typed text and the decision JSON until the account is
+deleted. There is no per-row purge yet; add one if the log needs a retention window.
+
+Every timeline page reads and sorts the user's whole `timeline_items` union before
+taking its slice (search scans it too). That is fine at prototype scale; revisit it when users have thousands of
+items.
+
 ## Dates
 
 Items store wall-clock `date` + `time` and the IANA `time_zone` they were entered in.

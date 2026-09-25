@@ -1,23 +1,26 @@
 # add-intent file map
 
-| File                                                       | What to add                                                                      | Copy from                     |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------- |
-| `packages/types/src/index.ts`                              | `intentSchema` value, `intentActionSchema` branch, enums, `highlightFieldSchema` | the `CREATE_TASK` branch      |
-| `apps/api/src/lib/decision-engine/action-candidates.ts`    | new candidate field (optional)                                                   | `range`, `duration`           |
-| `apps/api/src/lib/decision-engine/action-questions.ts`     | field question and reader (optional)                                             | `buildFieldQuestions` entries |
-| `apps/api/src/lib/decision-engine/action-builder.ts`       | `FieldSelections`, `*_PREFIX`, `buildIntentAction` and `buildHighlights` cases   | `CREATE_TASK` cases           |
-| `apps/api/src/lib/decision-engine/jev-decision-engine.ts`  | `questions.intent.criteria`, `ready` examples                                    | existing criteria lines       |
-| `apps/api/src/lib/decision-engine/mock-decision-engine.ts` | `classify` branch, `heuristicSelections`                                         | the note/search branches      |
-| `apps/mobile/src/components/intent-previews.tsx`           | `CARD_COPY`, `*Draft`, `DRAFTS`                                                  | `taskDraft`                   |
-| `apps/mobile/src/components/intent-confirmation-modal.tsx` | `FORM_COPY`, `FormFields`, seed `case`, `form` fields, `FIELD_MARKERS`           | `CREATE_TASK` entries         |
-| `tests/intent-contract.test.mjs`                           | schema accept/reject                                                             | existing kinds                |
-| `tests/action-builder.test.mjs`                            | builder and highlight cases                                                      | task cases                    |
-| `tests/mock-decision-engine.test.mjs`                      | keyword and near-miss                                                            | note/search cases             |
-| `tests/jev-decision-engine.test.mjs`                       | gateway answer → action                                                          | existing stubs                |
-| `tests/intent-route.test.mjs`                              | route-level response                                                             | existing intents              |
-| `tests/intent-entities.test.mjs`                           | entities for the new intent                                                      | existing cases                |
-| `tests/intent-confidence.test.mjs`                         | preview emphasis if affected                                                     | existing cases                |
-| `evals/intent-fixtures.json`                               | 4+ fixtures                                                                      | existing entries              |
+| File                                                       | What to add                                                                      | Copy from                            |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------ |
+| `packages/types/src/index.ts`                              | `intentSchema` value, `intentActionSchema` branch, enums, `highlightFieldSchema` | the `CREATE_TASK` branch             |
+| `apps/api/src/lib/decision-engine/action-candidates.ts`    | new candidate field (optional)                                                   | `range`, `duration`                  |
+| `apps/api/src/lib/decision-engine/action-questions.ts`     | field question and reader (optional)                                             | `buildFieldQuestions` entries        |
+| `apps/api/src/lib/decision-engine/action-builder.ts`       | `FieldSelections`, `*_PREFIX`, `buildIntentAction` and `buildHighlights` cases   | `CREATE_TASK` cases                  |
+| `apps/api/src/lib/decision-engine/jev-decision-engine.ts`  | `questions.intent.criteria`, `ready` examples                                    | existing criteria lines              |
+| `apps/api/src/lib/decision-engine/mock-decision-engine.ts` | `classify` branch, `heuristicSelections`                                         | the note/search branches             |
+| `apps/mobile/src/components/intent-previews.tsx`           | `CARD_COPY`, `*Draft`, `DRAFTS`                                                  | `taskDraft`                          |
+| `apps/mobile/src/lib/item-fields.ts`                       | `FormFields`, `fieldsFromDecision` and `fieldsToAction` cases                    | `CREATE_TASK` cases                  |
+| `apps/mobile/src/components/draft-sheet.tsx`               | `DRAFT_COPY` entry                                                               | `CREATE_TASK` entry                  |
+| `apps/mobile/src/components/item-form-sheet.tsx`           | `form` fields, `FIELD_MARKERS`                                                   | `CREATE_TASK` entries                |
+| `supabase/migrations/` (new migration)                     | table, RLS, `timeline_items` branch, `record_intent` `CASE` (saved kinds only)   | `tasks` and its `CREATE_TASK` `when` |
+| `tests/intent-contract.test.mjs`                           | schema accept/reject                                                             | existing kinds                       |
+| `tests/action-builder.test.mjs`                            | builder and highlight cases                                                      | task cases                           |
+| `tests/mock-decision-engine.test.mjs`                      | keyword and near-miss                                                            | note/search cases                    |
+| `tests/jev-decision-engine.test.mjs`                       | gateway answer → action                                                          | existing stubs                       |
+| `tests/intent-route.test.mjs`                              | route-level response                                                             | existing intents                     |
+| `tests/intent-entities.test.mjs`                           | entities for the new intent                                                      | existing cases                       |
+| `tests/intent-confidence.test.mjs`                         | preview emphasis if affected                                                     | existing cases                       |
+| `evals/intent-fixtures.json`                               | 4+ fixtures                                                                      | existing entries                     |
 
 ## Completeness check
 

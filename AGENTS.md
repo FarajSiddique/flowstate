@@ -65,7 +65,7 @@ Project subagents live in `.claude/agents/`. Reviewers report findings and never
 
 Project skills live in `.claude/skills/`.
 
-- `add-intent`: add, rename, or remove an intent. It covers all 14 files, in order, and includes a completeness check.
+- `add-intent`: add, rename, or remove an intent. It covers all 17 files, in order, and includes a completeness check.
 
 ## Commit & Pull Request Guidelines
 
