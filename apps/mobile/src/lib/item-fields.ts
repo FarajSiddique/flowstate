@@ -9,6 +9,7 @@ import type {
 } from '@nexui/types';
 
 import {
+  localToday,
   parseDateInput,
   parseDurationInput,
   parseListInput,
@@ -55,15 +56,18 @@ const EMPTY_FIELDS: FormFields = {
   scope: 'all',
 };
 
-function whenFields(when: LocalDateTime | null): Pick<FormFields, 'date' | 'time'> {
+function whenFields(when: LocalDateTime | null, today: string): Pick<FormFields, 'date' | 'time'> {
   return {
-    date: when ? displayLocalDate(when.date) : '',
+    date: when ? displayLocalDate(when.date, true, Number(today.slice(0, 4))) : '',
     time: displayTime(when?.time ?? undefined) ?? '',
   };
 }
 
 /** Prefills the sheet from the typed draft; legacy entities cover older API responses. */
-export function fieldsFromDecision({ action, entities }: IntentDecision): FormFields {
+export function fieldsFromDecision(
+  { action, entities }: IntentDecision,
+  today: string = localToday(),
+): FormFields {
   const fields: FormFields = {
     ...EMPTY_FIELDS,
     title: entities.title ?? '',
@@ -77,14 +81,14 @@ export function fieldsFromDecision({ action, entities }: IntentDecision): FormFi
       return {
         ...fields,
         title: action.title,
-        ...whenFields(action.due),
+        ...whenFields(action.due, today),
         priority: action.priority,
       };
     case 'CREATE_EVENT':
       return {
         ...fields,
         title: action.title,
-        ...whenFields(action.start),
+        ...whenFields(action.start, today),
         duration: displayDuration(action.durationMin),
         location: action.location ?? '',
         attendees: action.attendees.join(', '),
@@ -104,16 +108,16 @@ export function fieldsFromDecision({ action, entities }: IntentDecision): FormFi
 }
 
 /** Prefills the edit sheet from a saved item. */
-export function fieldsFromItem(item: SavedItem): FormFields {
+export function fieldsFromItem(item: SavedItem, today: string = localToday()): FormFields {
   const fields = { ...EMPTY_FIELDS, title: item.title };
 
   switch (item.kind) {
     case 'task':
-      return { ...fields, ...whenFields(item.due), priority: item.priority };
+      return { ...fields, ...whenFields(item.due, today), priority: item.priority };
     case 'event':
       return {
         ...fields,
-        ...whenFields(item.start),
+        ...whenFields(item.start, today),
         duration: displayDuration(item.durationMin),
         location: item.location ?? '',
         attendees: item.attendees.join(', '),

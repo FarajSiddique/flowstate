@@ -27,6 +27,13 @@ test('a month and day without a year picks the nearest year', () => {
   assert.deepEqual(parseDateInput('Dec 30', '2027-01-02'), ok('2026-12-30'));
 });
 
+test('a typed year is used as written', () => {
+  assert.deepEqual(parseDateInput('Jun 1, 2027', today), ok('2027-06-01'));
+  assert.deepEqual(parseDateInput('Tue, Jun 1, 2027', today), ok('2027-06-01'));
+  assert.deepEqual(parseDateInput('jan 10 2025', today), ok('2025-01-10'));
+  assert.deepEqual(parseDateInput('Feb 29, 2027', today), { ok: false });
+});
+
 test('unreadable or impossible dates fail', () => {
   for (const text of ['next friday', 'Feb 30', '2026-13-01', 'Sept']) {
     assert.deepEqual(parseDateInput(text, today), { ok: false }, text);

@@ -28,10 +28,12 @@ export function localToday(now: Date = new Date()): string {
 
 /**
  * Reads a date the sheet showed or the user typed. Blank means "no date". A month
- * and day without a year resolves to the year nearest `today`.
+ * and day with a year ("Jun 1, 2027") uses that year; without one it resolves to the
+ * year nearest `today`.
  *
  * @example
  * parseDateInput('Thu, Sep 24', '2026-09-20') // { ok: true, value: '2026-09-24' }
+ * parseDateInput('Tue, Jun 1, 2027', '2026-09-20') // { ok: true, value: '2027-06-01' }
  */
 export function parseDateInput(text: string, today: string): FieldResult<string | null> {
   const input = text.trim().toLowerCase();
@@ -59,11 +61,19 @@ export function parseDateInput(text: string, today: string): FieldResult<string 
     return value ? { ok: true, value } : { ok: false };
   }
 
-  const monthDay = /^(?:[a-z]{3,9},?\s+)?([a-z]{3})[a-z]*\.?\s+(\d{1,2})$/.exec(input);
+  const monthDay = /^(?:[a-z]{3,9},?\s+)?([a-z]{3})[a-z]*\.?\s+(\d{1,2})(?:,?\s+(\d{4}))?$/.exec(
+    input,
+  );
   const month = monthDay ? MONTHS.indexOf(monthDay[1]!) + 1 : 0;
 
   if (!monthDay || month === 0) {
     return { ok: false };
+  }
+
+  if (monthDay[3]) {
+    const value = isoDate(Number(monthDay[3]), month, Number(monthDay[2]));
+
+    return value ? { ok: true, value } : { ok: false };
   }
 
   const year = Number(today.slice(0, 4));

@@ -22,14 +22,19 @@ test('a drafted event round-trips through the form unchanged', () => {
     location: 'Blue Bottle',
   };
   const decision = { intent: 'CREATE_EVENT', confidence: 0.9, entities: {}, action };
-  const fields = fieldsFromDecision(decision);
+  const fields = fieldsFromDecision(decision, today);
   assert.equal(fields.date, 'Fri, Sep 25');
   assert.deepEqual(fieldsToAction('CREATE_EVENT', fields, today), { ok: true, value: action });
 });
 
 test('edited fields become a typed action, with blanks as null', () => {
   const decision = { intent: 'CREATE_TASK', confidence: 0.9, entities: { title: 'pay rent' } };
-  const fields = { ...fieldsFromDecision(decision), date: 'Oct 1', time: '', priority: 'high' };
+  const fields = {
+    ...fieldsFromDecision(decision, today),
+    date: 'Oct 1',
+    time: '',
+    priority: 'high',
+  };
   assert.deepEqual(fieldsToAction('CREATE_TASK', fields, today), {
     ok: true,
     value: {
@@ -43,7 +48,7 @@ test('edited fields become a typed action, with blanks as null', () => {
 
 test('unreadable fields explain themselves instead of sending anything', () => {
   const decision = { intent: 'CREATE_TASK', confidence: 0.9, entities: { title: 'x' } };
-  const base = fieldsFromDecision(decision);
+  const base = fieldsFromDecision(decision, today);
   assert.deepEqual(fieldsToAction('CREATE_TASK', { ...base, date: 'next friday' }, today), {
     ok: false,
     error: 'Enter a date like Sep 24.',
@@ -61,7 +66,11 @@ test('unreadable fields explain themselves instead of sending anything', () => {
 
 test('a search reads its query, scope and range', () => {
   const decision = { intent: 'SEARCH', confidence: 0.9, entities: { query: 'dentist' } };
-  const fields = { ...fieldsFromDecision(decision), scope: 'events', range: 'Sep 1 – Sep 30' };
+  const fields = {
+    ...fieldsFromDecision(decision, today),
+    scope: 'events',
+    range: 'Sep 1 – Sep 30',
+  };
   assert.deepEqual(fieldsToAction('SEARCH', fields, today), {
     ok: true,
     value: {
@@ -74,11 +83,11 @@ test('a search reads its query, scope and range', () => {
 });
 
 test('saved items prefill the form and read back as a full patch', () => {
-  assert.deepEqual(fieldsToPatch(savedTask, fieldsFromItem(savedTask), today), {
+  assert.deepEqual(fieldsToPatch(savedTask, fieldsFromItem(savedTask, today), today), {
     ok: true,
     value: { title: 'Call mom', due: { date: '2026-09-25', time: '15:00' }, priority: 'normal' },
   });
-  const eventFields = { ...fieldsFromItem(savedEvent), location: '  ', attendees: 'Ana' };
+  const eventFields = { ...fieldsFromItem(savedEvent, today), location: '  ', attendees: 'Ana' };
   assert.deepEqual(fieldsToPatch(savedEvent, eventFields, today), {
     ok: true,
     value: {
@@ -89,15 +98,39 @@ test('saved items prefill the form and read back as a full patch', () => {
       attendees: ['Ana'],
     },
   });
-  assert.deepEqual(fieldsToPatch(savedNote, fieldsFromItem(savedNote), today), {
+  assert.deepEqual(fieldsToPatch(savedNote, fieldsFromItem(savedNote, today), today), {
     ok: true,
     value: { title: 'Gift ideas', body: 'Book, scarf' },
   });
 });
 
 test('timeline rows describe kind and timing', () => {
-  assert.equal(displayItemMeta(savedTask), 'Task · Fri, Sep 25 · 3:00 PM');
-  assert.equal(displayItemMeta({ ...savedEvent, start: null }), 'Event · Unscheduled');
-  assert.equal(displayItemMeta(savedEvent), 'Event · Sat, Sep 26 · 1 hr');
-  assert.equal(displayItemMeta(savedNote), 'Note');
+  assert.equal(displayItemMeta(savedTask, 2026), 'Task · Fri, Sep 25 · 3:00 PM');
+  assert.equal(displayItemMeta({ ...savedEvent, start: null }, 2026), 'Event · Unscheduled');
+  assert.equal(displayItemMeta(savedEvent, 2026), 'Event · Sat, Sep 26 · 1 hr');
+  assert.equal(displayItemMeta(savedNote, 2026), 'Note');
+});
+
+test('dates outside the current year show their year and round-trip unchanged', () => {
+  const farTask = { ...savedTask, due: { date: '2027-06-01', time: null } };
+  const pastTask = { ...savedTask, due: { date: '2025-01-10', time: '09:00' } };
+  assert.equal(fieldsFromItem(farTask, today).date, 'Tue, Jun 1, 2027');
+
+  for (const item of [farTask, pastTask]) {
+    const patch = fieldsToPatch(item, fieldsFromItem(item, today), today);
+    assert.equal(patch.ok && patch.value.due.date, item.due.date);
+  }
+
+  const action = {
+    kind: 'CREATE_TASK',
+    title: 'Renew passport',
+    due: { date: '2027-06-01', time: null },
+    priority: 'normal',
+  };
+  const decision = { intent: 'CREATE_TASK', confidence: 0.9, entities: {}, action };
+  assert.deepEqual(fieldsToAction('CREATE_TASK', fieldsFromDecision(decision, today), today), {
+    ok: true,
+    value: action,
+  });
+  assert.equal(displayItemMeta(farTask, 2026), 'Task · Tue, Jun 1, 2027');
 });
