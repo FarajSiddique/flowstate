@@ -17,12 +17,15 @@
     "typecheck": "turbo run typecheck",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "eval:intent": "node --experimental-strip-types scripts/eval-intent.mjs",
+    "db:new": "supabase migration new",
+    "db:push": "supabase db push",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@nexui/config": "workspace:*",
     "prettier": "^3.6.2",
+    "supabase": "^2.117.0",
     "turbo": "^2.5.8"
   },
   "prettier": "@nexui/config/prettier"
