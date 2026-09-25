@@ -51,3 +51,18 @@ export function getAdminClient(env: Env = process.env): SupabaseClient {
 
   return cachedClient(projectUrl(env), key);
 }
+
+// Acts as the signed-in user, so row-level security scopes every query to their rows.
+// Not cached: each request carries its own token.
+export function getUserClient(accessToken: string, env: Env = process.env): SupabaseClient {
+  const key = env.SUPABASE_PUBLISHABLE_KEY?.trim();
+
+  if (!key) {
+    throw new SupabaseConfigurationError('SUPABASE_PUBLISHABLE_KEY is required for user data.');
+  }
+
+  return createClient(projectUrl(env), key, {
+    auth: serverAuth,
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+}

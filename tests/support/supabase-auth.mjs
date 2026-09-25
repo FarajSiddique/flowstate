@@ -55,3 +55,16 @@ export function mockSupabaseAuth(t, upstream = async () => new Response(null, { 
   });
   return upstreamMock;
 }
+
+/** Reads one call the upstream mock received, for asserting PostgREST requests. */
+export function upstreamCall(upstream, index = 0) {
+  const [input, init] = upstream.mock.calls[index].arguments;
+  const request = input instanceof Request ? input : null;
+  const body = init?.body;
+  return {
+    url: new URL(request?.url ?? String(input)),
+    method: init?.method ?? request?.method ?? 'GET',
+    headers: new Headers(request?.headers ?? init?.headers),
+    body: typeof body === 'string' ? JSON.parse(body) : null,
+  };
+}

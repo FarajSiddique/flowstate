@@ -17,11 +17,13 @@ async function assertUnauthorized(result) {
   assert.deepEqual(await result.json(), { error: 'Sign in to continue.' });
 }
 
-test('a valid token returns the user id and email', async (t) => {
+test('a valid token returns the user id, email and access token', async (t) => {
   mockSupabaseAuth(t);
-  assert.deepEqual(await verifyRequest(request(`Bearer ${signToken()}`)), {
+  const token = signToken();
+  assert.deepEqual(await verifyRequest(request(`Bearer ${token}`)), {
     userId: '6f1c9a52-0d0e-4b8f-9f4a-2f0d6f2c9a11',
     email: 'tester@example.com',
+    accessToken: token,
   });
 });
 
