@@ -8,7 +8,7 @@ This pnpm/Turborepo monorepo contains four private workspaces:
 - `apps/api/src/app/`: Next.js App Router pages and routes, including `api/health/route.ts`. AI, Supabase, and shared response code belongs in `src/lib/decision-engine/`, `src/lib/supabase/`, and `src/lib/http/`. API-specific rules live in `apps/api/AGENTS.md`.
 - `packages/types/src/`: shared Zod schemas and inferred TypeScript contracts, imported through `@nexui/types`.
 - `packages/config/`: strict TypeScript defaults, shared ESLint rules, and Prettier configuration.
-- `supabase/migrations/`: Postgres schema, RLS and SQL functions (see `docs/architecture/persistence.md`). Saved-record queries live in `apps/api/src/lib/records/`.
+- `supabase/migrations/`: Postgres schema, RLS and SQL functions (see `docs/architecture/persistence.md`). Saved-record queries live in `apps/api/src/lib/records/`. Instant commits, Undo and change intents (`COMPLETE`, `RESCHEDULE`, `APPEND`) are covered in `docs/architecture/instant-actions.md`.
 
 `tests/` contains Node tests; `docs/architecture/` contains short guides to current behavior. Keep new assets within their owning app. Keep server code out of shared contracts and mobile imports.
 
@@ -65,7 +65,7 @@ Project subagents live in `.claude/agents/`. Reviewers report findings and never
 
 Project skills live in `.claude/skills/`.
 
-- `add-intent`: add, rename, or remove an intent. It covers all 17 files, in order, and includes a completeness check.
+- `add-intent`: add, rename, or remove an intent. It covers all 18 files for a new-item intent (fewer for a change intent that acts on a saved item), in order, and includes a completeness check.
 
 ## Commit & Pull Request Guidelines
 

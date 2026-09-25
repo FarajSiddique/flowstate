@@ -3,8 +3,8 @@
 A small, typed foundation for an AI-native productivity app. The first product
 slice proves **natural-language input → typed intent → deterministic mobile UI**.
 Intent classification can use either a local mock or Jev through Vercel AI Gateway.
-Users sign in with Supabase Auth (emailed 6-digit code or native Google); there is
-no database functionality yet. Setup steps are in `docs/specs/auth.md`.
+Users sign in with Supabase Auth (emailed 6-digit code or native Google). Setup
+steps are in `docs/specs/auth.md`.
 For the current auth flow and ownership boundaries, see
 [Authentication](docs/architecture/authentication.md).
 
@@ -50,8 +50,10 @@ manual check. A small example Zustand store remains available for future local U
 state; health data lives in TanStack Query. Health requests time out after five seconds.
 
 Type a phrase into the Magic Bar. After a short pause, `POST /api/intent` classifies
-it, and Expo renders a preview using the shared Zod contract. **Continue** opens a
-prefilled form; its final button closes the form without saving anything. Try:
+it, and Expo renders a preview using the shared Zod contract. A high-confidence draft
+saves at once when you press return or tap the card's button, and an Undo card offers
+to reverse it for 8 seconds. A less certain draft opens **Continue**, a prefilled form
+whose final button saves it. Try:
 
 | Phrase                                        | Preview        |
 | --------------------------------------------- | -------------- |
@@ -59,6 +61,9 @@ prefilled form; its final button closes the form without saving anything. Try:
 | `remind me to submit my application tomorrow` | Create Task    |
 | `write down idea about AI sports coach`       | Create Note    |
 | `find my architecture notes`                  | Search         |
+| `done with call mom`                          | Mark done      |
+| `push the dentist to friday at 4`             | Move           |
+| `add 'bring charger' to trip notes`           | Add to note    |
 | `asdf banana purple`                          | No suggestion  |
 
 The mock parser treats an unqualified `at 2` as **2:00 PM**. It only supports a
