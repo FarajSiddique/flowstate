@@ -19,10 +19,12 @@ import { colors, fonts, markers } from '@/lib/theme';
 export function MagicBar({
   value,
   onChangeText,
+  onSubmit,
   highlights,
 }: {
   value: string;
   onChangeText: (value: string) => void;
+  onSubmit?: () => void;
   highlights?: readonly IntentHighlight[];
 }) {
   const [focused, setFocused] = useState(false);
@@ -78,6 +80,10 @@ export function MagicBar({
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        onSubmitEditing={onSubmit}
+        submitBehavior="submit"
+        returnKeyType="go"
+        enterKeyHint="go"
         placeholder="What do you want to do?"
         placeholderTextColor={colors.faint}
         selectionColor={colors.ink}

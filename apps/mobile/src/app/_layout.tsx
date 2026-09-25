@@ -16,11 +16,13 @@ import { startSessionLifecycle } from '@/lib/session-lifecycle';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { updateSession, useSessionStore } from '@/stores/use-session-store';
+import { clearUndo } from '@/stores/use-undo-store';
 
 // Signing out or deleting the account drops the cache so the next user never sees these items.
 function showSession(session: Session | null): void {
   if (!session) {
     queryClient.clear();
+    clearUndo();
   }
 
   updateSession(session);
