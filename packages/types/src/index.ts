@@ -49,7 +49,12 @@ export const intentEntitiesSchema = z.object({
 
 export type IntentEntities = z.infer<typeof intentEntitiesSchema>;
 
+// IANA names only: Postgres reads offsets such as "+05:30" as POSIX zones, sign flipped.
 function isTimeZone(timeZone: string): boolean {
+  if (timeZone.startsWith('+') || timeZone.startsWith('-')) {
+    return false;
+  }
+
   try {
     new Intl.DateTimeFormat('en-US', { timeZone });
 

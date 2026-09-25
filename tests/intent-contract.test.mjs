@@ -24,8 +24,12 @@ test('intent request accepts an optional client clock and IANA time zone', () =>
     text: 'meet Sarah',
     context,
   });
+  const utc = { ...context, timeZone: 'UTC' };
+  assert.equal(intentRequestSchema.safeParse({ text: 'meet Sarah', context: utc }).success, true);
   for (const bad of [
     { ...context, timeZone: 'Mars/Olympus' },
+    { ...context, timeZone: '+05:30' },
+    { ...context, timeZone: '-08:00' },
     { ...context, now: 'tomorrow' },
     { now: context.now },
   ]) {
