@@ -232,6 +232,11 @@ export const intentOutcomeSchema = z.enum(['confirmed', 'dismissed']);
 
 export type IntentOutcome = z.infer<typeof intentOutcomeSchema>;
 
+// The saved columns' limits, shared by the create and edit paths.
+const noteBodySchema = z.string().max(10_000).nullable();
+const eventLocationSchema = z.string().max(200).nullable();
+const attendeesSchema = z.array(z.string().trim().min(1).max(100)).max(50);
+
 // A draft the user confirmed (with their edits) or dismissed. Confirmed CREATE_* actions are saved.
 export const intentEventRequestSchema = z
   .object({
@@ -255,6 +260,23 @@ export const intentEventRequestSchema = z
       event.action.kind === 'SEARCH' ||
       itemTitleSchema.safeParse(event.action.title).success,
     { message: 'Add a title.', path: ['action', 'title'] },
+  )
+  .refine(
+    (event) =>
+      event.action?.kind !== 'CREATE_NOTE' || noteBodySchema.safeParse(event.action.body).success,
+    { message: 'Keep the note under 10,000 characters.', path: ['action', 'body'] },
+  )
+  .refine(
+    (event) =>
+      event.action?.kind !== 'CREATE_EVENT' ||
+      eventLocationSchema.safeParse(event.action.location).success,
+    { message: 'Keep the location under 200 characters.', path: ['action', 'location'] },
+  )
+  .refine(
+    (event) =>
+      event.action?.kind !== 'CREATE_EVENT' ||
+      attendeesSchema.safeParse(event.action.attendees).success,
+    { message: 'List up to 50 attendees.', path: ['action', 'attendees'] },
   );
 
 export type IntentEventRequest = z.infer<typeof intentEventRequestSchema>;
@@ -314,7 +336,7 @@ export const eventPatchSchema = z
     start: localDateTimeSchema.nullable().optional(),
     durationMin: z.number().int().min(1).max(1440).optional(),
     location: z.string().trim().max(200).nullable().optional(),
-    attendees: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+    attendees: attendeesSchema.optional(),
     ...completedField,
   })
   .refine(hasChanges, 'Nothing to update.');
@@ -322,7 +344,7 @@ export const eventPatchSchema = z
 export const notePatchSchema = z
   .strictObject({
     title: itemTitleSchema.optional(),
-    body: z.string().max(10_000).nullable().optional(),
+    body: noteBodySchema.optional(),
     ...completedField,
   })
   .refine(hasChanges, 'Nothing to update.');

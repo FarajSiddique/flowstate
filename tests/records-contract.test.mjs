@@ -43,6 +43,37 @@ test('a confirmed intent event needs a titled action that matches the decision',
   );
 });
 
+test("a confirmed draft stays within the saved columns' limits", () => {
+  const event = {
+    kind: 'CREATE_EVENT',
+    title: 'Design review',
+    start: null,
+    durationMin: 60,
+    attendees: ['Ana'],
+    location: 'Room 4',
+  };
+  const note = { kind: 'CREATE_NOTE', title: 'Gift ideas', body: 'Book' };
+  const confirm = (next) => ({
+    text: 'save this',
+    decision: { intent: next.kind, confidence: 0.9, entities: {} },
+    outcome: 'confirmed',
+    action: next,
+  });
+  const failedPath = (next) =>
+    intentEventRequestSchema.safeParse(confirm(next)).error?.issues[0]?.path;
+
+  assert.equal(intentEventRequestSchema.safeParse(confirm(event)).success, true);
+  assert.equal(intentEventRequestSchema.safeParse(confirm(note)).success, true);
+  assert.deepEqual(failedPath({ ...note, body: 'x'.repeat(10_001) }), ['action', 'body']);
+  assert.deepEqual(failedPath({ ...event, location: 'x'.repeat(201) }), ['action', 'location']);
+  assert.deepEqual(failedPath({ ...event, attendees: Array(51).fill('Ana') }), [
+    'action',
+    'attendees',
+  ]);
+  assert.deepEqual(failedPath({ ...event, attendees: ['x'.repeat(101)] }), ['action', 'attendees']);
+  assert.deepEqual(failedPath({ ...event, attendees: ['  '] }), ['action', 'attendees']);
+});
+
 test('timeline query coerces limit, defaults to 50 and caps at 100', () => {
   assert.deepEqual(timelineQuerySchema.parse({}), { limit: 50 });
   assert.deepEqual(timelineQuerySchema.parse({ limit: '20', cursor: 'abc' }), {
