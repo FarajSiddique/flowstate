@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   IntentEventRequest,
   ItemKind,
+  ItemPatch,
   SavedItem,
   SearchQuery,
   SearchScope,
@@ -11,7 +12,7 @@ import type {
 } from '@nexui/types';
 
 import { decodeCursor, encodeCursor } from './cursor.ts';
-import { toSavedItem, type ItemRow } from './mappers.ts';
+import { ITEM_TABLES, toPatchColumns, toSavedItem, type ItemRow } from './mappers.ts';
 
 export class InvalidCursorError extends Error {}
 
@@ -138,4 +139,36 @@ export async function searchItems(
   }
 
   return ((data ?? []) as TimelineRow[]).map((row) => toSavedItem(row.kind, row.item));
+}
+
+export class RecordNotFoundError extends Error {}
+
+/**
+ * Applies an edit and/or completion. A missing id and another user's row look the
+ * same: RLS makes the update touch zero rows, which is reported as not found.
+ */
+export async function updateItem(
+  client: SupabaseClient,
+  kind: ItemKind,
+  id: string,
+  patch: ItemPatch,
+  now: Date = new Date(),
+): Promise<SavedItem> {
+  const { data, error } = await client
+    .from(ITEM_TABLES[kind])
+    .update(toPatchColumns(patch, now))
+    .eq('id', id)
+    .select();
+
+  if (error) {
+    throw error;
+  }
+
+  const row = (data as ItemRow[] | null)?.[0];
+
+  if (!row) {
+    throw new RecordNotFoundError('Item not found');
+  }
+
+  return toSavedItem(kind, row);
 }
