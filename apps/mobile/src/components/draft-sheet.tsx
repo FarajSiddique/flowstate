@@ -18,13 +18,19 @@ const DRAFT_COPY = {
   SEARCH: { heading: 'Search', action: 'Search' },
 } as const;
 
-// Logs the confirmed draft (saving CREATE_* items); a search then runs against saved items.
+// Logs the confirmed draft once (saving CREATE_* items); a search then runs against saved
+// items. `logged` flips as soon as the log lands, so a retry after a failed search only
+// searches again and closing never logs a dismissal for a confirmed draft.
 async function confirmDraft(
   decision: IntentDecision,
   text: string,
   action: IntentAction,
+  logged: { current: boolean },
 ): Promise<SavedItem[] | null> {
-  await recordIntentEvent({ text, decision, outcome: 'confirmed', action });
+  if (!logged.current) {
+    await recordIntentEvent({ text, decision, outcome: 'confirmed', action });
+    logged.current = true;
+  }
 
   if (action.kind !== 'SEARCH') {
     return null;
@@ -54,12 +60,10 @@ export function DraftSheet({
   const [fields, setFields] = useState(() => fieldsFromDecision(decision));
   const [formError, setFormError] = useState<string | null>(null);
   const [results, setResults] = useState<SavedItem[] | null>(null);
-  const confirmed = useRef(false);
+  const logged = useRef(false);
   const confirm = useMutation({
-    mutationFn: (action: IntentAction) => confirmDraft(decision, text, action),
+    mutationFn: (action: IntentAction) => confirmDraft(decision, text, action, logged),
     onSuccess: (items) => {
-      confirmed.current = true;
-
       if (items) {
         setResults(items);
 
@@ -95,7 +99,7 @@ export function DraftSheet({
   }
 
   function close() {
-    if (!confirmed.current) {
+    if (!logged.current) {
       void recordIntentEvent({ text, decision, outcome: 'dismissed' }).catch(() => undefined);
     }
 
