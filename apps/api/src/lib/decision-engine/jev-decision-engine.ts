@@ -27,7 +27,7 @@ const evaluationSchema = z.object({
       type: z.literal('choice'),
       choice: intentSchema,
       confidence: probability.optional(),
-      probabilities: z.record(intentSchema, probability),
+      probabilities: z.partialRecord(intentSchema, probability),
     }),
     ready: z.object({ type: z.literal('boolean'), probability }),
   }),
@@ -126,7 +126,7 @@ export class JevDecisionEngine implements DecisionEngine {
 
         return intentResponseSchema.parse({
           intent: choice,
-          confidence: Math.min(confidence ?? probabilities[choice], answers.ready.probability),
+          confidence: Math.min(confidence ?? probabilities[choice] ?? 0, answers.ready.probability),
           entities: extractIntentEntities(choice, text),
           ...(action && { action }),
           ...(highlights.length > 0 && { highlights }),

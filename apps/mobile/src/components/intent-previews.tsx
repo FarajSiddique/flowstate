@@ -1,4 +1,10 @@
-import type { HighlightField, Intent, IntentDecision } from '@nexui/types';
+import {
+  isChangeIntent,
+  type ChangeIntent,
+  type HighlightField,
+  type Intent,
+  type IntentDecision,
+} from '@nexui/types';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { previewEmphasis, type PreviewEmphasis } from '@/lib/intent-confidence';
@@ -25,10 +31,10 @@ interface Draft {
   rows: DetailRow[];
 }
 
-const CARD_COPY: Record<
-  Exclude<Intent, 'UNKNOWN'>,
-  { label: string; tentative: string; action: string }
-> = {
+// Intents that preview a new item or a search; change intents get their own card.
+type DraftIntent = Exclude<Intent, 'UNKNOWN' | ChangeIntent>;
+
+const CARD_COPY: Record<DraftIntent, { label: string; tentative: string; action: string }> = {
   CREATE_EVENT: { label: 'New event', tentative: 'Maybe a new event', action: 'Review event' },
   CREATE_TASK: { label: 'New task', tentative: 'Maybe a new task', action: 'Review task' },
   CREATE_NOTE: { label: 'New note', tentative: 'Maybe a new note', action: 'Review note' },
@@ -109,7 +115,7 @@ function searchDraft({ action, entities }: IntentDecision): Draft {
   };
 }
 
-const DRAFTS = {
+const DRAFTS: Record<DraftIntent, (decision: IntentDecision) => Draft> = {
   CREATE_EVENT: eventDraft,
   CREATE_TASK: taskDraft,
   CREATE_NOTE: noteDraft,
@@ -123,7 +129,7 @@ function PreviewCard({
   onContinue,
 }: {
   decision: IntentDecision;
-  intent: Exclude<Intent, 'UNKNOWN'>;
+  intent: DraftIntent;
   emphasis: PreviewEmphasis;
   onContinue: () => void;
 }) {
@@ -194,7 +200,7 @@ export function IntentPreview({
   decision: IntentDecision | null;
   onContinue: () => void;
 }) {
-  if (!decision || decision.intent === 'UNKNOWN') {
+  if (!decision || decision.intent === 'UNKNOWN' || isChangeIntent(decision.intent)) {
     return null;
   }
 

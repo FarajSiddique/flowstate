@@ -1,5 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { IntentAction, IntentDecision, SavedItem } from '@nexui/types';
+import {
+  isChangeIntent,
+  type IntentAction,
+  type IntentDecision,
+  type SavedItem,
+} from '@nexui/types';
 import { useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -28,7 +33,7 @@ async function confirmDraft(
   logged: { current: boolean },
 ): Promise<SavedItem[] | null> {
   if (!logged.current) {
-    await recordIntentEvent({ text, decision, outcome: 'confirmed', action });
+    await recordIntentEvent({ text, decision, outcome: 'confirmed', action, via: 'form' });
     logged.current = true;
   }
 
@@ -75,7 +80,7 @@ export function DraftSheet({
     },
   });
 
-  if (decision.intent === 'UNKNOWN') {
+  if (decision.intent === 'UNKNOWN' || isChangeIntent(decision.intent)) {
     return null;
   }
 

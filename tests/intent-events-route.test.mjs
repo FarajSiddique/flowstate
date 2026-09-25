@@ -40,7 +40,7 @@ test('a confirmed task is saved and logged as the signed-in user', async (t) => 
   const token = signToken();
   const upstream = mockSupabaseAuth(t, async () => Response.json({ kind: 'task', ...taskRow }));
   const response = await POST(
-    request({ text, context, decision, outcome: 'confirmed', action }, token),
+    request({ text, context, decision, outcome: 'confirmed', via: 'form', action }, token),
   );
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), { item: savedTask });
@@ -66,11 +66,17 @@ test('a dismissed draft is only logged, in UTC when the client sent no zone', as
 
 test('invalid events are rejected before reaching the database', async (t) => {
   const upstream = mockSupabaseAuth(t);
-  const missing = await POST(request({ text, decision, outcome: 'confirmed' }));
+  const missing = await POST(request({ text, decision, outcome: 'confirmed', via: 'form' }));
   assert.equal(missing.status, 400);
   assert.deepEqual(await missing.json(), { error: 'Invalid request.' });
   const untitled = await POST(
-    request({ text, decision, outcome: 'confirmed', action: { ...action, title: '  ' } }),
+    request({
+      text,
+      decision,
+      outcome: 'confirmed',
+      via: 'form',
+      action: { ...action, title: '  ' },
+    }),
   );
   assert.equal(untitled.status, 400);
   assert.deepEqual(await untitled.json(), { error: 'Add a title.' });
@@ -82,7 +88,9 @@ test('a database failure returns a generic 500 and logs no details', async (t) =
     Response.json({ message: 'boom secret', code: 'XX000' }, { status: 500 }),
   );
   const logged = t.mock.method(console, 'error', () => {});
-  const response = await POST(request({ text, context, decision, outcome: 'confirmed', action }));
+  const response = await POST(
+    request({ text, context, decision, outcome: 'confirmed', via: 'form', action }),
+  );
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: 'Could not save. Try again.' });
   assert.equal(JSON.stringify(logged.mock.calls).includes('boom secret'), false);

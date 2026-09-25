@@ -120,6 +120,10 @@ export function buildIntentAction(
       };
     }
 
+    // Change intents are built from the user's saved items in change-actions.ts.
+    case 'COMPLETE':
+    case 'RESCHEDULE':
+    case 'APPEND':
     case 'UNKNOWN':
       return undefined;
   }

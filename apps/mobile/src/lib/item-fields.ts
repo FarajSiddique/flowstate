@@ -306,6 +306,9 @@ export function fieldsToAction(
       break;
     }
 
+    case 'COMPLETE':
+    case 'RESCHEDULE':
+    case 'APPEND':
     case 'UNKNOWN':
       return { ok: false, error: 'Nexui could not tell what to create.' };
   }

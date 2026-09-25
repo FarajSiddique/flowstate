@@ -33,7 +33,7 @@ export async function recordIntent(
   event: IntentEventRequest,
 ): Promise<SavedItem | null> {
   const action =
-    event.action && event.action.kind !== 'SEARCH'
+    event.action && 'title' in event.action
       ? { ...event.action, title: event.action.title.trim() }
       : event.action;
   const { data, error } = await client.rpc('record_intent', {

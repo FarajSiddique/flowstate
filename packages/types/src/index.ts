@@ -34,6 +34,9 @@ export const intentSchema = z.enum([
   'CREATE_EVENT',
   'CREATE_NOTE',
   'SEARCH',
+  'COMPLETE',
+  'RESCHEDULE',
+  'APPEND',
   'UNKNOWN',
 ]);
 
@@ -80,14 +83,12 @@ export const intentRequestSchema = z.object({
 export type IntentRequest = z.infer<typeof intentRequestSchema>;
 
 const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const timeOfDaySchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
 
 // Wall-clock values in the user's time zone; an all-day item has no time.
 export const localDateTimeSchema = z.object({
   date: isoDateSchema,
-  time: z
-    .string()
-    .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/)
-    .nullable(),
+  time: timeOfDaySchema.nullable(),
 });
 
 export type LocalDateTime = z.infer<typeof localDateTimeSchema>;
@@ -103,6 +104,36 @@ export type TaskPriority = z.infer<typeof taskPrioritySchema>;
 export const searchScopeSchema = z.enum(['all', 'tasks', 'events', 'notes']);
 
 export type SearchScope = z.infer<typeof searchScopeSchema>;
+
+export const itemKindSchema = z.enum(['task', 'event', 'note']);
+
+export type ItemKind = z.infer<typeof itemKindSchema>;
+
+export const itemIdSchema = z.uuid();
+
+// A saved item a change intent can act on, as the server found it.
+export const itemRefSchema = z.object({
+  kind: itemKindSchema,
+  id: itemIdSchema,
+  title: z.string(),
+  when: localDateTimeSchema.nullable(),
+});
+
+export type ItemRef = z.infer<typeof itemRefSchema>;
+
+// A new date and/or time as the user said it, before it is merged with the item's current one.
+export const partialWhenSchema = z
+  .object({ date: isoDateSchema.nullable(), time: timeOfDaySchema.nullable() })
+  .refine((when) => when.date !== null || when.time !== null, 'Say a date or a time');
+
+export type PartialWhen = z.infer<typeof partialWhenSchema>;
+
+// One match sets `target`; an unsure match lists `alternatives`; no match leaves both empty.
+const targetFields = {
+  phrase: z.string().min(1).max(200),
+  target: itemRefSchema.nullable(),
+  alternatives: z.array(itemRefSchema).max(5),
+};
 
 export const intentActionSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -130,9 +161,55 @@ export const intentActionSchema = z.discriminatedUnion('kind', [
     scope: searchScopeSchema,
     range: dateRangeSchema.nullable(),
   }),
+  z.object({ kind: z.literal('COMPLETE'), ...targetFields }),
+  z.object({
+    kind: z.literal('RESCHEDULE'),
+    ...targetFields,
+    to: localDateTimeSchema.nullable(),
+    toParsed: partialWhenSchema.nullable(),
+  }),
+  z.object({ kind: z.literal('APPEND'), ...targetFields, text: z.string().max(2000) }),
 ]);
 
 export type IntentAction = z.infer<typeof intentActionSchema>;
+
+export const CHANGE_INTENTS = ['COMPLETE', 'RESCHEDULE', 'APPEND'] as const;
+
+export type ChangeIntent = (typeof CHANGE_INTENTS)[number];
+export type ChangeAction = Extract<IntentAction, { kind: ChangeIntent }>;
+
+export function isChangeIntent(intent: Intent): intent is ChangeIntent {
+  return (CHANGE_INTENTS as readonly Intent[]).includes(intent);
+}
+
+export function isChangeAction(action: IntentAction): action is ChangeAction {
+  return isChangeIntent(action.kind);
+}
+
+// Which saved kinds each change intent may target.
+export const TARGET_KINDS = {
+  COMPLETE: ['task', 'event', 'note'],
+  RESCHEDULE: ['task', 'event'],
+  APPEND: ['note'],
+} as const satisfies Record<ChangeIntent, readonly ItemKind[]>;
+
+/**
+ * Merges a spoken date/time with the item's current one; unsaid parts are kept.
+ *
+ * @example
+ * resolveRescheduleTo({ date: null, time: '10:00' }, { date: '2026-09-24', time: '15:00' }, today)
+ * // { date: '2026-09-24', time: '10:00' }
+ */
+export function resolveRescheduleTo(
+  parsed: PartialWhen,
+  current: LocalDateTime | null,
+  today: string,
+): LocalDateTime {
+  return {
+    date: parsed.date ?? current?.date ?? today,
+    time: parsed.time ?? current?.time ?? null,
+  };
+}
 
 export const highlightFieldSchema = z.enum([
   'when',
@@ -176,13 +253,34 @@ export const intentResponseSchema = z
 
 export type IntentDecision = z.infer<typeof intentResponseSchema>;
 
+// Drafts at or above this confidence can be saved without the form.
+export const HIGH_CONFIDENCE = 0.85;
+
+/** True when return or the card's main button may save the draft at once (with Undo). */
+export function canCommit(decision: IntentDecision): boolean {
+  const { action } = decision;
+
+  if (!action || decision.confidence < HIGH_CONFIDENCE) {
+    return false;
+  }
+
+  switch (action.kind) {
+    case 'CREATE_TASK':
+    case 'CREATE_EVENT':
+    case 'CREATE_NOTE':
+      return action.title.trim().length > 0;
+    case 'COMPLETE':
+      return action.target !== null;
+    case 'RESCHEDULE':
+      return action.target !== null && action.to !== null;
+    case 'APPEND':
+      return action.target !== null && action.text.trim().length > 0;
+    case 'SEARCH':
+      return false;
+  }
+}
+
 // Saved records. Timestamps are Postgres ISO strings with an offset.
-export const itemKindSchema = z.enum(['task', 'event', 'note']);
-
-export type ItemKind = z.infer<typeof itemKindSchema>;
-
-export const itemIdSchema = z.uuid();
-
 const itemTitleSchema = z.string().trim().min(1).max(200);
 const timestampSchema = z.iso.datetime({ offset: true });
 
@@ -232,12 +330,23 @@ export const intentOutcomeSchema = z.enum(['confirmed', 'dismissed']);
 
 export type IntentOutcome = z.infer<typeof intentOutcomeSchema>;
 
+// Whether a confirmed draft was saved straight away or through the form.
+export const commitViaSchema = z.enum(['instant', 'form']);
+
+export type CommitVia = z.infer<typeof commitViaSchema>;
+
 // The saved columns' limits, shared by the create and edit paths.
 const noteBodySchema = z.string().max(10_000).nullable();
 const eventLocationSchema = z.string().max(200).nullable();
 const attendeesSchema = z.array(z.string().trim().min(1).max(100)).max(50);
 
-// A draft the user confirmed (with their edits) or dismissed. Confirmed CREATE_* actions are saved.
+function targetFits(action: ChangeAction): boolean {
+  const kinds: readonly ItemKind[] = TARGET_KINDS[action.kind];
+
+  return action.target !== null && kinds.includes(action.target.kind);
+}
+
+// A draft the user confirmed (with their edits) or dismissed. Confirmed actions other than SEARCH are saved.
 export const intentEventRequestSchema = z
   .object({
     text: z.string().trim().min(3).max(500),
@@ -245,10 +354,15 @@ export const intentEventRequestSchema = z
     decision: intentResponseSchema,
     outcome: intentOutcomeSchema,
     action: intentActionSchema.optional(),
+    via: commitViaSchema.optional(),
   })
   .refine((event) => event.outcome === 'dismissed' || event.action !== undefined, {
     message: 'A confirmed draft needs its action',
     path: ['action'],
+  })
+  .refine((event) => event.outcome === 'dismissed' || event.via !== undefined, {
+    message: 'A confirmed draft says how it was confirmed',
+    path: ['via'],
   })
   .refine((event) => !event.action || event.action.kind === event.decision.intent, {
     message: 'Action kind must match intent',
@@ -257,9 +371,30 @@ export const intentEventRequestSchema = z
   .refine(
     (event) =>
       !event.action ||
-      event.action.kind === 'SEARCH' ||
+      !('title' in event.action) ||
       itemTitleSchema.safeParse(event.action.title).success,
     { message: 'Add a title.', path: ['action', 'title'] },
+  )
+  .refine(
+    (event) =>
+      event.outcome === 'dismissed' ||
+      !event.action ||
+      !isChangeAction(event.action) ||
+      targetFits(event.action),
+    { message: 'Pick an item.', path: ['action', 'target'] },
+  )
+  .refine(
+    (event) =>
+      event.outcome === 'dismissed' ||
+      event.action?.kind !== 'RESCHEDULE' ||
+      event.action.to !== null,
+    { message: 'Pick a new date.', path: ['action', 'to'] },
+  )
+  .refine(
+    (event) =>
+      event.action?.kind !== 'APPEND' ||
+      z.string().trim().min(1).max(2000).safeParse(event.action.text).success,
+    { message: 'Add some text.', path: ['action', 'text'] },
   )
   .refine(
     (event) =>

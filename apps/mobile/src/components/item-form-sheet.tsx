@@ -123,6 +123,9 @@ export function ItemFormSheet({
       segmented('Look in', 'scope', SCOPE_OPTIONS),
       field('Dates', 'range'),
     ],
+    COMPLETE: [],
+    RESCHEDULE: [field('Date', 'date'), field('Time', 'time')],
+    APPEND: [field('Add to note', 'body', true)],
   }[layout];
 
   // A save in flight must finish (and log its own outcome) before the sheet can close.

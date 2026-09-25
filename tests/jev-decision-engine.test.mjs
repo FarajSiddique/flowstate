@@ -126,6 +126,17 @@ test('supports Gateway answers without a separate confidence field', async () =>
   assert.equal((await engineFor(result).classifyIntent(input)).confidence, 0.98);
 });
 
+test('probabilities can omit unoffered choices, falling back to 0 confidence for the chosen one', async () => {
+  const missingOther = evaluation();
+  delete missingOther.answers.intent.probabilities.CREATE_TASK;
+  assert.equal((await engineFor(missingOther).classifyIntent(input)).confidence, 0.96);
+
+  const missingChoice = evaluation();
+  delete missingChoice.answers.intent.confidence;
+  delete missingChoice.answers.intent.probabilities.CREATE_EVENT;
+  assert.equal((await engineFor(missingChoice).classifyIntent(input)).confidence, 0);
+});
+
 test('rejects malformed or out-of-contract Gateway answers', async () => {
   const invalid = [
     null,
@@ -135,9 +146,6 @@ test('rejects malformed or out-of-contract Gateway answers', async () => {
     evaluation('CREATE_EVENT', 1.5),
     evaluation('CREATE_EVENT', 0.9, -1),
   ];
-  const missing = evaluation();
-  delete missing.answers.intent.probabilities.CREATE_TASK;
-  invalid.push(missing);
   for (const result of invalid) {
     assert.deepEqual(await engineFor(result).classifyIntent(input), unknown);
   }
