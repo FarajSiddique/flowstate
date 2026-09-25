@@ -6,6 +6,7 @@ import { getAuthClient, SupabaseConfigurationError } from './clients.ts';
 export interface AuthUser {
   userId: string;
   email: string | null;
+  accessToken: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -61,7 +62,11 @@ export async function verifyRequest(
       return unauthorized(headers);
     }
 
-    return { userId: claims.sub, email: typeof claims.email === 'string' ? claims.email : null };
+    return {
+      userId: claims.sub,
+      email: typeof claims.email === 'string' ? claims.email : null,
+      accessToken: token,
+    };
   } catch (error) {
     console.error(
       '[auth]',

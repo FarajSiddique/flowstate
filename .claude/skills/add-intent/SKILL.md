@@ -1,11 +1,11 @@
 ---
 name: add-intent
-description: Use when adding, renaming, or removing a nexui intent or action kind (e.g. "add a CREATE_REMINDER intent", "support expenses in the magic bar", "drop SEARCH"). Walks every place an intent lives — shared contract, candidates, action builder, jev criteria, mock engine, mobile previews and confirmation modal, tests, and eval fixtures — in dependency order.
+description: Use when adding, renaming, or removing a nexui intent or action kind (e.g. "add a CREATE_REMINDER intent", "support expenses in the magic bar", "drop SEARCH"). Walks every place an intent lives — shared contract, candidates, action builder, jev criteria, mock engine, mobile previews and draft sheet, the database, tests, and eval fixtures — in dependency order.
 ---
 
 # Add an intent
 
-An intent spans 14 files. Work in this order so each step typechecks against the one before it. [reference.md](reference.md) has the file map and a completeness check.
+An intent spans 17 files. Work in this order so each step typechecks against the one before it. [reference.md](reference.md) has the file map and a completeness check.
 
 Before starting, save a baseline: `pnpm -s eval:intent --out $TMPDIR/intent-before.json`.
 
@@ -42,11 +42,17 @@ A candidate is a span in the text that jev can choose (dates, durations, people�
 ## 6. Mobile
 
 - `apps/mobile/src/components/intent-previews.tsx`: add a `CARD_COPY` entry (the type checks this map), a `*Draft` function copied from the closest existing one, and the entry in `DRAFTS`. **`DRAFTS` is untyped, so check it by hand.**
-- `apps/mobile/src/components/intent-confirmation-modal.tsx`: add a `FORM_COPY` entry, add new field names to `FormFields`, add the `case` that seeds the form from the action, and add the field list in `form`. **`FORM_COPY` and `form` are untyped, so check them by hand.** Add `FIELD_MARKERS` for new highlight fields.
+- `apps/mobile/src/lib/item-fields.ts`: add new field names to `FormFields` and `EMPTY_FIELDS`, the `fieldsFromDecision` case that prefills the sheet from the action, and the `fieldsToAction` case that reads it back (copy `readTask`). A saved kind also needs `fieldsFromItem` and `fieldsToPatch` cases.
+- `apps/mobile/src/components/draft-sheet.tsx`: add a `DRAFT_COPY` entry (heading and button label).
+- `apps/mobile/src/components/item-form-sheet.tsx`: add the field list in `form`, and `FIELD_MARKERS` for new highlight fields.
 - `apps/mobile/src/lib/intent-display.ts`: add a `display*` formatter or `*_OPTIONS` list only for a new field type.
 - `apps/mobile/src/lib/intent-confidence.ts`: normally no change. Check it if the new intent needs a different emphasis.
 
-## 7. Tests (`tests/`)
+## 7. Database — `supabase/migrations/`
+
+- A new `CREATE_*` kind that saves something needs its own table, RLS policies, a `timeline_items` branch, and a `when` in `record_intent`'s `CASE` (plus an `intent_events` link column). Add these in a new migration (`pnpm db:new <name>`); never edit a pushed one. A kind that saves nothing (like `SEARCH`) falls through the `else` and needs no change.
+
+## 8. Tests (`tests/`)
 
 Add cases alongside the existing ones for the neighbouring intent:
 
@@ -56,17 +62,17 @@ Add cases alongside the existing ones for the neighbouring intent:
 - `jev-decision-engine`: the gateway answer maps to the new action (stubbed `gatewayFetch`).
 - `intent-route`, `intent-entities`, `intent-confidence`: update wherever intents are listed or enumerated.
 
-## 8. Eval fixtures — `evals/intent-fixtures.json`
+## 9. Eval fixtures — `evals/intent-fixtures.json`
 
 Add at least 4: a clear phrase, a reworded one, a partial ("still typing") one, and a near-miss that belongs to a neighbouring intent.
 
-## 9. Verify
+## 10. Verify
 
 1. `pnpm typecheck`, which catches gaps in the typed maps. Then `pnpm test`, `pnpm lint`, `pnpm format:check`.
 2. `pnpm -s eval:intent --compare $TMPDIR/intent-before.json`: existing intents shouldn't regress. Ask before running `--provider jev` (billed); the `intent-evaluator` agent can run and summarize it.
-3. Run the flow in `pnpm dev:web`: type a phrase, then check the preview card, highlights, and confirmation modal.
+3. Run the flow in `pnpm dev:web`: type a phrase, then check the preview card, highlights, and draft sheet, and confirm a draft to see it saved.
 4. Run the `api-reviewer` and `mobile-reviewer` agents, then `docs-keeper`.
 
 ## Remove or rename an intent
 
-Go through the same files in reverse (fixtures and tests → mobile → mock → jev → builder → candidates → contract). Then run the grep in reference.md until it returns nothing for the old name. This is a prototype, so don't keep aliases or compatibility branches for older clients.
+Go through the same files in reverse (fixtures and tests → database → mobile → mock → jev → builder → candidates → contract). Then run the grep in reference.md until it returns nothing for the old name. This is a prototype, so don't keep aliases or compatibility branches for older clients.

@@ -1,12 +1,13 @@
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { AppState, Platform } from 'react-native';
 
-export function QueryProvider({ children }: { children: ReactNode }) {
-  const [client] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } }),
-  );
+/** The app's one server-state cache. The root layout clears it when the session ends. */
+export const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: 1, staleTime: 10_000 } },
+});
 
+export function QueryProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (Platform.OS === 'web') {
       return;
@@ -19,5 +20,5 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     return () => subscription.remove();
   }, []);
 
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

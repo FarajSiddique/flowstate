@@ -3,6 +3,7 @@ import { AtkinsonHyperlegible_700Bold } from '@expo-google-fonts/atkinson-hyperl
 import { BricolageGrotesque_500Medium } from '@expo-google-fonts/bricolage-grotesque/500Medium';
 import { BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque/700Bold';
 import { BricolageGrotesque_800ExtraBold } from '@expo-google-fonts/bricolage-grotesque/800ExtraBold';
+import type { Session } from '@supabase/supabase-js';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -10,17 +11,26 @@ import { useEffect, type ReactElement } from 'react';
 import { AppState, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { QueryProvider } from '@/lib/query-provider';
+import { QueryProvider, queryClient } from '@/lib/query-provider';
 import { startSessionLifecycle } from '@/lib/session-lifecycle';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/lib/theme';
 import { updateSession, useSessionStore } from '@/stores/use-session-store';
 
+// Signing out or deleting the account drops the cache so the next user never sees these items.
+function showSession(session: Session | null): void {
+  if (!session) {
+    queryClient.clear();
+  }
+
+  updateSession(session);
+}
+
 export default function RootLayout(): ReactElement | null {
   useEffect(() => {
     const nativeAppState = Platform.OS === 'web' ? undefined : AppState;
 
-    return startSessionLifecycle(supabase.auth, updateSession, nativeAppState);
+    return startSessionLifecycle(supabase.auth, showSession, nativeAppState);
   }, []);
 
   const [fontsLoaded, fontError] = useFonts({

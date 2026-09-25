@@ -1,5 +1,5 @@
-import type { HighlightField, IntentDecision } from '@nexui/types';
-import { useState } from 'react';
+import type { HighlightField, Intent } from '@nexui/types';
+import type { ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -12,129 +12,50 @@ import {
   View,
 } from 'react-native';
 
-import {
-  displayDate,
-  displayDuration,
-  displayLocalDate,
-  displayRange,
-  displayTime,
-  PRIORITY_OPTIONS,
-  SCOPE_OPTIONS,
-} from '@/lib/intent-display';
+import type { FormFields } from '@/lib/item-fields';
+import { PRIORITY_OPTIONS, SCOPE_OPTIONS } from '@/lib/intent-display';
 import { colors, fonts, markers } from '@/lib/theme';
 
-const FORM_COPY = {
-  CREATE_EVENT: { heading: 'New event', action: 'Create event' },
-  CREATE_TASK: { heading: 'New task', action: 'Create task' },
-  CREATE_NOTE: { heading: 'New note', action: 'Create note' },
-  SEARCH: { heading: 'Search', action: 'Search' },
-  UNKNOWN: { heading: '', action: '' },
-} as const;
-
-type FormFields = Record<
-  | 'title'
-  | 'date'
-  | 'time'
-  | 'duration'
-  | 'location'
-  | 'attendees'
-  | 'body'
-  | 'query'
-  | 'range'
-  | 'priority'
-  | 'scope',
-  string
->;
-
-// Form fields filled from a marked span keep that span's marker color beside their label.
-const FIELD_MARKERS: Partial<Record<keyof FormFields, HighlightField>> = {
-  date: 'when',
-  time: 'when',
-  duration: 'duration',
-  location: 'location',
-  attendees: 'attendees',
-  priority: 'priority',
-  range: 'range',
-};
-
-// Prefill from the typed action draft; legacy entities cover older API responses.
-function initialFields({ action, entities }: IntentDecision): FormFields {
-  const fields: FormFields = {
-    title: entities.title ?? '',
-    date: displayDate(entities.date) ?? '',
-    time: displayTime(entities.time) ?? '',
-    duration: '',
-    location: '',
-    attendees: '',
-    body: '',
-    query: entities.query ?? '',
-    range: '',
-    priority: 'normal',
-    scope: 'all',
-  };
-
-  switch (action?.kind) {
-    case 'CREATE_TASK':
-    case 'CREATE_EVENT': {
-      const when = action.kind === 'CREATE_TASK' ? action.due : action.start;
-
-      Object.assign(fields, {
-        title: action.title,
-        date: when ? displayLocalDate(when.date) : '',
-        time: displayTime(when?.time ?? undefined) ?? '',
-      });
-      if (action.kind === 'CREATE_TASK') {
-        fields.priority = action.priority;
-      } else {
-        Object.assign(fields, {
-          duration: displayDuration(action.durationMin),
-          location: action.location ?? '',
-          attendees: action.attendees.join(', '),
-        });
-      }
-
-      break;
-    }
-
-    case 'CREATE_NOTE':
-      Object.assign(fields, { title: action.title, body: action.body ?? '' });
-      break;
-    case 'SEARCH':
-      Object.assign(fields, {
-        query: action.query,
-        scope: action.scope,
-        range: displayRange(action.range) ?? '',
-      });
-      break;
-  }
-
-  return fields;
+export interface ItemFormSheetProps {
+  layout: Exclude<Intent, 'UNKNOWN'>;
+  heading: string;
+  actionLabel: string;
+  fields: FormFields;
+  onChangeField: (key: keyof FormFields, value: string) => void;
+  markedFields?: ReadonlySet<HighlightField>;
+  error: string | null;
+  busy: boolean;
+  onSubmit: () => void;
+  onClose: () => void;
+  children?: ReactNode;
 }
 
-export function IntentConfirmationModal({
-  decision,
+// The shared bottom sheet for drafting and editing items. It owns no data or requests.
+export function ItemFormSheet({
+  layout,
+  heading,
+  actionLabel,
+  fields,
+  onChangeField,
+  markedFields,
+  error,
+  busy,
+  onSubmit,
   onClose,
-}: {
-  decision: IntentDecision;
-  onClose: () => void;
-}) {
-  const [fields, setFields] = useState(() => initialFields(decision));
-  const copy = FORM_COPY[decision.intent];
-  const marked = new Set(decision.highlights?.map((span) => span.field));
+  children,
+}: ItemFormSheetProps) {
   const label = (text: string, key: keyof FormFields) => {
     const field = FIELD_MARKERS[key];
 
     return (
       <View style={styles.labelRow}>
-        {field && marked.has(field) ? (
+        {field && markedFields?.has(field) ? (
           <View style={[styles.swatch, { backgroundColor: markers[field] }]} />
         ) : null}
         <Text style={styles.fieldLabel}>{text}</Text>
       </View>
     );
   };
-  const update = (key: keyof FormFields, value: string) =>
-    setFields((current) => ({ ...current, [key]: value }));
 
   const field = (title: string, key: keyof FormFields, multiline = false) => (
     <View style={styles.field} key={key}>
@@ -142,7 +63,7 @@ export function IntentConfirmationModal({
       <TextInput
         accessibilityLabel={title}
         value={fields[key]}
-        onChangeText={(value) => update(key, value)}
+        onChangeText={(value) => onChangeField(key, value)}
         multiline={multiline}
         textAlignVertical={multiline ? 'top' : 'center'}
         style={[styles.fieldInput, multiline && styles.multiline]}
@@ -168,7 +89,7 @@ export function IntentConfirmationModal({
               key={option.value}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              onPress={() => update(key, option.value)}
+              onPress={() => onChangeField(key, option.value)}
               style={[styles.segment, selected && styles.segmentSelected]}
             >
               <Text style={[styles.segmentText, selected && styles.segmentTextSelected]}>
@@ -202,42 +123,74 @@ export function IntentConfirmationModal({
       segmented('Look in', 'scope', SCOPE_OPTIONS),
       field('Dates', 'range'),
     ],
-    UNKNOWN: [],
-  }[decision.intent];
+  }[layout];
+
+  // A save in flight must finish (and log its own outcome) before the sheet can close.
+  const close = () => {
+    if (busy) {
+      return;
+    }
+
+    onClose();
+  };
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent animationType="slide" onRequestClose={close}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.overlay}
       >
-        <Pressable accessibilityLabel="Close form" onPress={onClose} style={styles.backdrop} />
+        <Pressable accessibilityLabel="Close form" onPress={close} style={styles.backdrop} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text accessibilityRole="header" style={styles.heading}>
-              {copy.heading}
+              {heading}
             </Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={onClose}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              accessibilityState={{ disabled: busy }}
+              disabled={busy}
+              onPress={close}
+            >
               <Text style={styles.close}>Close</Text>
             </Pressable>
           </View>
           <ScrollView keyboardShouldPersistTaps="handled">
             {form}
+            {error ? (
+              <Text accessibilityLiveRegion="polite" style={styles.error}>
+                {error}
+              </Text>
+            ) : null}
             <Pressable
               accessibilityRole="button"
-              onPress={onClose}
-              style={({ pressed }) => [styles.submit, pressed && styles.pressed]}
+              accessibilityState={{ disabled: busy, busy }}
+              disabled={busy}
+              onPress={onSubmit}
+              style={({ pressed }) => [styles.submit, (pressed || busy) && styles.pressed]}
             >
-              <Text style={styles.submitText}>{copy.action}</Text>
+              <Text style={styles.submitText}>{busy ? 'Saving…' : actionLabel}</Text>
             </Pressable>
-            <Text style={styles.hint}>Preview only. Nothing is saved yet.</Text>
+            {children}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
   );
 }
+
+// Form fields filled from a marked span keep that span's marker color beside their label.
+const FIELD_MARKERS: Partial<Record<keyof FormFields, HighlightField>> = {
+  date: 'when',
+  time: 'when',
+  duration: 'duration',
+  location: 'location',
+  attendees: 'attendees',
+  priority: 'priority',
+  range: 'range',
+};
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
@@ -282,12 +235,12 @@ const styles = StyleSheet.create({
   },
   submit: { backgroundColor: colors.ink, padding: 16, borderRadius: 999, marginTop: 28 },
   submitText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.page, textAlign: 'center' },
-  hint: {
+  error: {
     fontFamily: fonts.body,
-    textAlign: 'center',
-    color: colors.muted,
-    fontSize: 13,
-    marginTop: 12,
+    color: colors.danger,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 20,
   },
   multiline: { minHeight: 110 },
   segments: {
