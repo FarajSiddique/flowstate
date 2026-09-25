@@ -4,6 +4,8 @@ import type {
   IntentEventRequest,
   ItemKind,
   SavedItem,
+  SearchQuery,
+  SearchScope,
   TimelineQuery,
   TimelineResponse,
 } from '@nexui/types';
@@ -88,4 +90,52 @@ export async function getTimelinePage(
     items: page.map((row) => toSavedItem(row.kind, row.item)),
     nextCursor: hasMore ? encodeCursor({ sortAt: last.sort_at, id: last.id }) : null,
   };
+}
+
+const SCOPE_KINDS = {
+  all: ['task', 'event', 'note'],
+  tasks: ['task'],
+  events: ['event'],
+  notes: ['note'],
+} as const satisfies Record<SearchScope, readonly ItemKind[]>;
+
+const SEARCH_LIMIT = 50;
+
+// Escapes LIKE wildcards so "50%" matches the literal text.
+function containsPattern(text: string): string {
+  return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
+}
+
+/**
+ * Case-insensitive substring search over titles (plus note bodies and event
+ * location/people), newest first. A date range keeps only dated tasks and events.
+ */
+export async function searchItems(
+  client: SupabaseClient,
+  query: SearchQuery,
+): Promise<SavedItem[]> {
+  let request = client
+    .from('timeline_items')
+    .select('kind, id, sort_at, item')
+    .ilike('search_text', containsPattern(query.q))
+    .in('kind', [...SCOPE_KINDS[query.scope]]);
+
+  if (query.from) {
+    request = request.gte('item_date', query.from);
+  }
+
+  if (query.to) {
+    request = request.lte('item_date', query.to);
+  }
+
+  const { data, error } = await request
+    .order('sort_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(SEARCH_LIMIT);
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as TimelineRow[]).map((row) => toSavedItem(row.kind, row.item));
 }
