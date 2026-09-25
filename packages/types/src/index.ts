@@ -170,3 +170,165 @@ export const intentResponseSchema = z
   });
 
 export type IntentDecision = z.infer<typeof intentResponseSchema>;
+
+// Saved records. Timestamps are Postgres ISO strings with an offset.
+export const itemKindSchema = z.enum(['task', 'event', 'note']);
+
+export type ItemKind = z.infer<typeof itemKindSchema>;
+
+export const itemIdSchema = z.uuid();
+
+const itemTitleSchema = z.string().trim().min(1).max(200);
+const timestampSchema = z.iso.datetime({ offset: true });
+
+const savedItemBase = {
+  id: itemIdSchema,
+  title: z.string(),
+  timeZone: z.string(),
+  completedAt: timestampSchema.nullable(),
+  createdAt: timestampSchema,
+  updatedAt: timestampSchema,
+};
+
+export const savedTaskSchema = z.object({
+  kind: z.literal('task'),
+  ...savedItemBase,
+  due: localDateTimeSchema.nullable(),
+  priority: taskPrioritySchema,
+});
+
+export const savedEventSchema = z.object({
+  kind: z.literal('event'),
+  ...savedItemBase,
+  start: localDateTimeSchema.nullable(),
+  durationMin: z.number().int().min(1).max(1440),
+  location: z.string().nullable(),
+  attendees: z.array(z.string()),
+});
+
+export const savedNoteSchema = z.object({
+  kind: z.literal('note'),
+  ...savedItemBase,
+  body: z.string().nullable(),
+});
+
+export const savedItemSchema = z.discriminatedUnion('kind', [
+  savedTaskSchema,
+  savedEventSchema,
+  savedNoteSchema,
+]);
+
+export type SavedTask = z.infer<typeof savedTaskSchema>;
+export type SavedEvent = z.infer<typeof savedEventSchema>;
+export type SavedNote = z.infer<typeof savedNoteSchema>;
+export type SavedItem = z.infer<typeof savedItemSchema>;
+
+export const intentOutcomeSchema = z.enum(['confirmed', 'dismissed']);
+
+export type IntentOutcome = z.infer<typeof intentOutcomeSchema>;
+
+// A draft the user confirmed (with their edits) or dismissed. Confirmed CREATE_* actions are saved.
+export const intentEventRequestSchema = z
+  .object({
+    text: z.string().trim().min(3).max(500),
+    context: intentContextSchema.optional(),
+    decision: intentResponseSchema,
+    outcome: intentOutcomeSchema,
+    action: intentActionSchema.optional(),
+  })
+  .refine((event) => event.outcome === 'dismissed' || event.action !== undefined, {
+    message: 'A confirmed draft needs its action',
+    path: ['action'],
+  })
+  .refine((event) => !event.action || event.action.kind === event.decision.intent, {
+    message: 'Action kind must match intent',
+    path: ['action'],
+  })
+  .refine(
+    (event) =>
+      !event.action ||
+      event.action.kind === 'SEARCH' ||
+      itemTitleSchema.safeParse(event.action.title).success,
+    { message: 'Add a title.', path: ['action', 'title'] },
+  );
+
+export type IntentEventRequest = z.infer<typeof intentEventRequestSchema>;
+
+export const intentEventResponseSchema = z.object({ item: savedItemSchema.nullable() });
+
+export type IntentEventResponse = z.infer<typeof intentEventResponseSchema>;
+
+export const timelineQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: z.string().min(1).max(300).optional(),
+});
+
+export type TimelineQuery = z.infer<typeof timelineQuerySchema>;
+
+export const timelineResponseSchema = z.object({
+  items: z.array(savedItemSchema),
+  nextCursor: z.string().nullable(),
+});
+
+export type TimelineResponse = z.infer<typeof timelineResponseSchema>;
+
+export const searchQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(200),
+    scope: searchScopeSchema.default('all'),
+    from: isoDateSchema.optional(),
+    to: isoDateSchema.optional(),
+  })
+  .refine((query) => !query.from || !query.to || query.from <= query.to, {
+    message: 'The range must start before it ends',
+    path: ['to'],
+  });
+
+export type SearchQuery = z.infer<typeof searchQuerySchema>;
+
+export const searchResponseSchema = z.object({ items: z.array(savedItemSchema) });
+
+export type SearchResponse = z.infer<typeof searchResponseSchema>;
+
+// Edits and completion share one PATCH; each kind accepts only its own fields.
+const hasChanges = (patch: object): boolean => Object.keys(patch).length > 0;
+const completedField = { completed: z.boolean().optional() };
+
+export const taskPatchSchema = z
+  .strictObject({
+    title: itemTitleSchema.optional(),
+    due: localDateTimeSchema.nullable().optional(),
+    priority: taskPrioritySchema.optional(),
+    ...completedField,
+  })
+  .refine(hasChanges, 'Nothing to update.');
+
+export const eventPatchSchema = z
+  .strictObject({
+    title: itemTitleSchema.optional(),
+    start: localDateTimeSchema.nullable().optional(),
+    durationMin: z.number().int().min(1).max(1440).optional(),
+    location: z.string().trim().max(200).nullable().optional(),
+    attendees: z.array(z.string().trim().min(1).max(100)).max(50).optional(),
+    ...completedField,
+  })
+  .refine(hasChanges, 'Nothing to update.');
+
+export const notePatchSchema = z
+  .strictObject({
+    title: itemTitleSchema.optional(),
+    body: z.string().max(10_000).nullable().optional(),
+    ...completedField,
+  })
+  .refine(hasChanges, 'Nothing to update.');
+
+export const itemPatchSchemas = {
+  task: taskPatchSchema,
+  event: eventPatchSchema,
+  note: notePatchSchema,
+} as const;
+
+export type TaskPatch = z.infer<typeof taskPatchSchema>;
+export type EventPatch = z.infer<typeof eventPatchSchema>;
+export type NotePatch = z.infer<typeof notePatchSchema>;
+export type ItemPatch = TaskPatch | EventPatch | NotePatch;
