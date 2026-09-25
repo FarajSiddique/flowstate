@@ -1,7 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'expo-router';
-import type { IntentDecision, SavedItem } from '@nexui/types';
-import { useState } from 'react';
+import {
+  isChangeAction,
+  isChangeIntent,
+  type ChangeAction,
+  type IntentAction,
+  type IntentDecision,
+  type SavedItem,
+} from '@nexui/types';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,22 +20,35 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChangeSheet } from '@/components/change-sheet';
 import { DraftSheet } from '@/components/draft-sheet';
 import { EditSheet } from '@/components/edit-sheet';
 import { IntentPreview } from '@/components/intent-previews';
 import { MagicBar } from '@/components/magic-bar';
 import { TimelineRow } from '@/components/timeline-row';
-import { getHealth } from '@/lib/api';
+import { UndoToast } from '@/components/undo-toast';
+import { ApiError, getHealth, recordIntentEvent } from '@/lib/api';
+import { undoMessage } from '@/lib/commit-label';
 import { previewEmphasis } from '@/lib/intent-confidence';
+import { submitStep } from '@/lib/submit-decision';
 import { colors, fonts } from '@/lib/theme';
-import { useCompleteItem, useTimeline } from '@/lib/use-timeline';
+import { TIMELINE_KEY, useCompleteItem, useTimeline } from '@/lib/use-timeline';
 import { useIntentPrediction } from '@/lib/use-intent-prediction';
+import { showUndo } from '@/stores/use-undo-store';
 
 type Sheet =
-  { type: 'draft'; decision: IntentDecision; text: string } | { type: 'edit'; item: SavedItem };
+  | { type: 'draft'; decision: IntentDecision; text: string }
+  | { type: 'change'; decision: IntentDecision; action: ChangeAction; text: string }
+  | { type: 'edit'; item: SavedItem };
+
+interface Commit {
+  decision: IntentDecision;
+  action: IntentAction;
+  text: string;
+}
 
 export default function HomeScreen() {
-  const { text, setText, decision, isPredicting, error } = useIntentPrediction();
+  const { text, setText, decision, isPredicting, error, resolveNow } = useIntentPrediction();
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const timeline = useTimeline();
   const complete = useCompleteItem();
@@ -37,6 +57,124 @@ export default function HomeScreen() {
     queryFn: ({ signal }) => getHealth(signal),
     refetchInterval: 15_000,
   });
+  const queryClient = useQueryClient();
+  // Read inside `commit`'s onSuccess instead of closing over `text`, whose value there
+  // would otherwise be stale from when the mutation was created.
+  const textRef = useRef(text);
+
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
+  const submitting = useRef(false);
+  const commit = useMutation({
+    mutationFn: ({ decision: logged, action, text: typed }: Commit) =>
+      recordIntentEvent({
+        text: typed,
+        decision: logged,
+        outcome: 'confirmed',
+        action,
+        via: 'instant',
+      }),
+    onSuccess: ({ eventId }, { action, text: committed }) => {
+      void queryClient.invalidateQueries({ queryKey: TIMELINE_KEY });
+
+      // Leaves text the user typed since the commit alone, instead of erasing it.
+      if (textRef.current.trim() === committed) {
+        setText('');
+      }
+
+      showUndo(eventId, undoMessage(action));
+    },
+  });
+  const requestError = commit.error instanceof ApiError ? commit.error.message : null;
+  const commitError = commit.error
+    ? (requestError ?? 'Could not save. Check your connection.')
+    : null;
+
+  function changeText(value: string) {
+    // Only clear a failed commit's error; clearing `isPending` here would re-enable the
+    // buttons and let a second Enter or tap fire while the first commit is in flight.
+    if (commit.isError) {
+      commit.reset();
+    }
+
+    setText(value);
+  }
+
+  function commitNow(action: IntentAction) {
+    if (!decision || commit.isPending) {
+      return;
+    }
+
+    commit.mutate({ decision, action, text: text.trim() });
+  }
+
+  function review(forDecision: IntentDecision, action?: IntentAction) {
+    Keyboard.dismiss();
+
+    if (isChangeIntent(forDecision.intent)) {
+      const change = action ?? forDecision.action;
+
+      if (change && isChangeAction(change)) {
+        setSheet({ type: 'change', decision: forDecision, action: change, text: text.trim() });
+      }
+
+      return;
+    }
+
+    setSheet({ type: 'draft', decision: forDecision, text: text.trim() });
+  }
+
+  // A change that matched nothing becomes a new task draft, prefilled with the phrase.
+  function createInstead(phrase: string) {
+    if (!decision) {
+      return;
+    }
+
+    const title = phrase.charAt(0).toUpperCase() + phrase.slice(1);
+
+    Keyboard.dismiss();
+    setSheet({
+      type: 'draft',
+      decision: {
+        intent: 'CREATE_TASK',
+        confidence: decision.confidence,
+        entities: { title },
+        action: { kind: 'CREATE_TASK', title, due: null, priority: 'normal' },
+      },
+      text: text.trim(),
+    });
+  }
+
+  async function submitFromBar() {
+    if (commit.isPending || submitting.current) {
+      return;
+    }
+
+    submitting.current = true;
+
+    const typed = text.trim();
+
+    try {
+      const ready = await resolveNow();
+      const step = submitStep(ready);
+
+      if (!ready?.action || step === 'ignore') {
+        return;
+      }
+
+      if (step === 'commit') {
+        commit.mutate({ decision: ready, action: ready.action, text: typed });
+
+        return;
+      }
+
+      review(ready);
+    } finally {
+      submitting.current = false;
+    }
+  }
 
   const status = health.isPending ? 'Checking…' : health.isError ? 'Unreachable' : 'Connected';
   const statusColor = health.isPending
@@ -80,9 +218,17 @@ export default function HomeScreen() {
           </Link>
         </View>
       </View>
-      <Text style={styles.subtitle}>Type a plan. Nexui marks the details it picked up.</Text>
+      <Text style={styles.subtitle}>
+        Type a plan and press return. Nexui marks the details it picked up.
+      </Text>
 
-      <MagicBar value={text} onChangeText={setText} highlights={shown?.highlights} />
+      <UndoToast />
+      <MagicBar
+        value={text}
+        onChangeText={changeText}
+        onSubmit={() => void submitFromBar()}
+        highlights={shown?.highlights}
+      />
 
       {isPredicting ? (
         <Text accessibilityLiveRegion="polite" style={styles.feedback}>
@@ -96,14 +242,15 @@ export default function HomeScreen() {
       ) : null}
       <IntentPreview
         decision={decision}
-        onContinue={() => {
-          if (!decision) {
-            return;
+        busy={commit.isPending}
+        error={commitError}
+        onCommit={commitNow}
+        onReview={(action) => {
+          if (decision) {
+            review(decision, action);
           }
-
-          Keyboard.dismiss();
-          setSheet({ type: 'draft', decision, text: text.trim() });
         }}
+        onCreateInstead={createInstead}
       />
 
       {health.isError ? (
@@ -160,6 +307,18 @@ export default function HomeScreen() {
       {sheet?.type === 'draft' ? (
         <DraftSheet
           decision={sheet.decision}
+          text={sheet.text}
+          onClose={() => setSheet(null)}
+          onSaved={() => {
+            setSheet(null);
+            setText('');
+          }}
+        />
+      ) : null}
+      {sheet?.type === 'change' ? (
+        <ChangeSheet
+          decision={sheet.decision}
+          action={sheet.action}
           text={sheet.text}
           onClose={() => setSheet(null)}
           onSaved={() => {

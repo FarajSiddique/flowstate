@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 import type {
+  IntentAction,
   IntentEventRequest,
+  IntentEventResponse,
   ItemKind,
   ItemPatch,
   SavedItem,
@@ -24,38 +26,64 @@ export interface TimelineRow {
   item: ItemRow;
 }
 
+export class ItemChangedError extends Error {}
+export class NoteFullError extends Error {}
+
+// Titles and appended text are saved trimmed.
+function trimmedAction(action: IntentAction | undefined): IntentAction | null {
+  if (!action) {
+    return null;
+  }
+
+  if ('title' in action) {
+    return { ...action, title: action.title.trim() };
+  }
+
+  if (action.kind === 'APPEND') {
+    return { ...action, text: action.text.trim() };
+  }
+
+  return action;
+}
+
 /**
- * Logs a confirmed or dismissed draft. A confirmed CREATE_* action is saved in the
- * same transaction (`record_intent`), and the saved item is returned.
+ * Logs a confirmed or dismissed draft. A confirmed create is saved, or a confirmed
+ * change applied, in the same transaction (`record_intent`). Returns the log id (for
+ * undo) and the saved item.
  */
 export async function recordIntent(
   client: SupabaseClient,
   event: IntentEventRequest,
-): Promise<SavedItem | null> {
-  const action =
-    event.action && event.action.kind !== 'SEARCH'
-      ? { ...event.action, title: event.action.title.trim() }
-      : event.action;
+): Promise<IntentEventResponse> {
   const { data, error } = await client.rpc('record_intent', {
     input_text: event.text,
     input_context: event.context ?? null,
     input_decision: event.decision,
     input_outcome: event.outcome,
-    input_action: action ?? null,
+    input_action: trimmedAction(event.action),
     input_time_zone: event.context?.timeZone ?? 'UTC',
+    input_via: event.via ?? null,
   });
 
   if (error) {
+    if (error.code === 'NXU01') {
+      throw new ItemChangedError('The item changed');
+    }
+
+    // The notes.body length check; other checks are enforced by the request schema.
+    if (error.code === '23514' && event.action?.kind === 'APPEND') {
+      throw new NoteFullError('The note is full');
+    }
+
     throw error;
   }
 
-  if (!data) {
-    return null;
-  }
+  const result = data as { eventId: string; item: (ItemRow & { kind: ItemKind }) | null };
 
-  const row = data as ItemRow & { kind: ItemKind };
-
-  return toSavedItem(row.kind, row);
+  return {
+    eventId: result.eventId,
+    item: result.item ? toSavedItem(result.item.kind, result.item) : null,
+  };
 }
 
 /**
@@ -104,7 +132,7 @@ const SEARCH_LIMIT = 50;
 
 // Escapes LIKE wildcards so "50%" matches the literal text. PostgREST turns every '*'
 // into '%' before Postgres sees it (even "\*"), so '*' stays a wildcard.
-function containsPattern(text: string): string {
+export function containsPattern(text: string): string {
   return `%${text.replace(/[\\%_]/g, (character) => `\\${character}`)}%`;
 }
 
@@ -143,6 +171,49 @@ export async function searchItems(
 }
 
 export class RecordNotFoundError extends Error {}
+
+export const UNDO_REFUSALS = [
+  'Too late to undo',
+  'Item was edited, so undo was skipped',
+  'Already undone',
+  'Nothing to undo',
+] as const;
+
+/** Undo was refused; the message is safe to show. */
+export class UndoRefusedError extends Error {}
+
+/**
+ * Reverses a confirmed create or change (`undo_intent`). Returns the restored item, or
+ * null when a created item was deleted. Another user's log row looks missing.
+ */
+export async function undoIntent(
+  client: SupabaseClient,
+  eventId: string,
+): Promise<SavedItem | null> {
+  const { data, error } = await client.rpc('undo_intent', { input_event_id: eventId });
+
+  if (error) {
+    if (error.code === 'NXU04') {
+      throw new RecordNotFoundError('Log row not found');
+    }
+
+    if (error.code === 'NXU09') {
+      const reason = UNDO_REFUSALS.find((refusal) => refusal === error.message);
+
+      throw new UndoRefusedError(reason ?? 'Could not undo. Try again.');
+    }
+
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const row = data as ItemRow & { kind: ItemKind };
+
+  return toSavedItem(row.kind, row);
+}
 
 /**
  * Applies an edit and/or completion. A missing id and another user's row look the

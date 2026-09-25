@@ -1,10 +1,12 @@
 import type { IntentDecision, IntentRequest } from '@nexui/types';
 
+import type { TargetLookup } from './change-actions.ts';
 import { JevDecisionEngine } from './jev-decision-engine.ts';
 import { MockDecisionEngine } from './mock-decision-engine.ts';
 
 export interface DecisionEngine {
-  classifyIntent(input: IntentRequest): Promise<IntentDecision>;
+  // `lookup` finds the user's saved items for change intents; without it nothing matches.
+  classifyIntent(input: IntentRequest, lookup?: TargetLookup): Promise<IntentDecision>;
 }
 
 export class DecisionEngineConfigurationError extends Error {}
@@ -46,9 +48,9 @@ export function getDecisionEngine(env: NodeJS.ProcessEnv = process.env): Decisio
   }
 
   return {
-    async classifyIntent(input) {
+    async classifyIntent(input, lookup) {
       const start = performance.now();
-      const decision = await engine.classifyIntent(input);
+      const decision = await engine.classifyIntent(input, lookup);
 
       if (env.NODE_ENV !== 'production') {
         console.info(

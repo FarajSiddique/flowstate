@@ -1,4 +1,4 @@
-import type { IntentDecision, IntentRequest } from '@nexui/types';
+import type { IntentDecision, IntentRequest, ItemRef } from '@nexui/types';
 
 import { buildHighlights, buildIntentAction, type FieldSelections } from './action-builder.ts';
 import {
@@ -6,6 +6,15 @@ import {
   resolveReference,
   type ActionCandidates,
 } from './action-candidates.ts';
+import {
+  buildChangeAction,
+  findChangeMatch,
+  NO_TARGETS,
+  shortlistTargets,
+  type ChangeMatch,
+  type TargetChoice,
+  type TargetLookup,
+} from './change-actions.ts';
 import type { DecisionEngine } from './index';
 
 function capitalize(text: string): string {
@@ -50,11 +59,41 @@ function heuristicSelections(input: string, candidates: ActionCandidates): Field
   };
 }
 
+// Offline stand-in for Jev's target pick: exactly one title containing the phrase wins.
+function mockTargetChoice(match: ChangeMatch, shortlist: ItemRef[]): TargetChoice {
+  if (shortlist.length === 0) {
+    return { type: 'none' };
+  }
+
+  const phrase = match.phrase.toLowerCase();
+  const containing = shortlist.filter((ref) => ref.title.toLowerCase().includes(phrase));
+
+  return containing.length === 1 ? { type: 'picked', id: containing[0]!.id } : { type: 'unsure' };
+}
+
 export class MockDecisionEngine implements DecisionEngine {
-  async classifyIntent({ text, context }: IntentRequest): Promise<IntentDecision> {
+  async classifyIntent(
+    { text, context }: IntentRequest,
+    lookup: TargetLookup = NO_TARGETS,
+  ): Promise<IntentDecision> {
     const input = text.trim().replace(/\s+/g, ' ');
+    const reference = resolveReference(context);
+    const change = findChangeMatch(input, reference);
+
+    if (change) {
+      const shortlist = await shortlistTargets(lookup, change);
+      const choice = mockTargetChoice(change, shortlist);
+
+      return {
+        intent: change.intent,
+        confidence: 0.9,
+        entities: {},
+        action: buildChangeAction(change, shortlist, choice, reference),
+      };
+    }
+
     const decision = this.classify(input);
-    const candidates = findActionCandidates(input, resolveReference(context));
+    const candidates = findActionCandidates(input, reference);
     const selections = heuristicSelections(input, candidates);
     const action = buildIntentAction(decision.intent, input, candidates, selections);
 

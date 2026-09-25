@@ -1,4 +1,4 @@
-import type { Intent, IntentEntities } from '@nexui/types';
+import { isChangeIntent, type Intent, type IntentEntities } from '@nexui/types';
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
@@ -7,7 +7,7 @@ function capitalize(text: string): string {
 // Jev selects an intent, not arbitrary strings. Keep source-text extraction local
 // and conservative; unsupported date expressions stay in the editable title.
 export function extractIntentEntities(intent: Intent, text: string): IntentEntities {
-  if (intent === 'UNKNOWN') {
+  if (intent === 'UNKNOWN' || isChangeIntent(intent)) {
     return {};
   }
 

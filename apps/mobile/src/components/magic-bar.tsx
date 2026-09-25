@@ -8,6 +8,8 @@ import {
   Text,
   TextInput,
   View,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
   type TextStyle,
 } from 'react-native';
 
@@ -19,16 +21,38 @@ import { colors, fonts, markers } from '@/lib/theme';
 export function MagicBar({
   value,
   onChangeText,
+  onSubmit,
   highlights,
 }: {
   value: string;
   onChangeText: (value: string) => void;
+  onSubmit?: () => void;
   highlights?: readonly IntentHighlight[];
 }) {
   const [focused, setFocused] = useState(false);
   const segments = useMemo(() => highlightSegments(value, highlights), [value, highlights]);
   const marked = segments.some((segment) => segment.field);
   const [opacity] = useState(() => new Animated.Value(0));
+
+  // react-native-web ignores `submitBehavior` and only fires `onSubmitEditing` when
+  // `blurOnSubmit || !multiline`; this bar is multiline, so Enter would otherwise insert
+  // a newline. react-native-web hands `onKeyPress` the raw DOM keydown event rather than
+  // RN's `TextInputKeyPressEventData`, so the extra fields are read through a cast.
+  function handleWebKeyPress(event: NativeSyntheticEvent<TextInputKeyPressEventData>) {
+    const webEvent = event as unknown as {
+      key: string;
+      shiftKey: boolean;
+      nativeEvent: { isComposing?: boolean };
+      preventDefault: () => void;
+    };
+
+    if (webEvent.key !== 'Enter' || webEvent.shiftKey || webEvent.nativeEvent.isComposing) {
+      return;
+    }
+
+    webEvent.preventDefault();
+    onSubmit?.();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -78,6 +102,11 @@ export function MagicBar({
         onChangeText={onChangeText}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
+        onSubmitEditing={onSubmit}
+        onKeyPress={Platform.OS === 'web' ? handleWebKeyPress : undefined}
+        submitBehavior="submit"
+        returnKeyType="go"
+        enterKeyHint="go"
         placeholder="What do you want to do?"
         placeholderTextColor={colors.faint}
         selectionColor={colors.ink}

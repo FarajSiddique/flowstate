@@ -22,7 +22,7 @@ test('a saved item accepts PostgREST timestamps and rejects unknown values', () 
 });
 
 test('a confirmed intent event needs a titled action that matches the decision', () => {
-  const base = { text: 'call mom', decision, outcome: 'confirmed' };
+  const base = { text: 'call mom', decision, outcome: 'confirmed', via: 'form' };
   assert.equal(intentEventRequestSchema.safeParse({ ...base, action }).success, true);
   assert.equal(intentEventRequestSchema.safeParse(base).success, false);
   assert.equal(
@@ -57,6 +57,7 @@ test("a confirmed draft stays within the saved columns' limits", () => {
     text: 'save this',
     decision: { intent: next.kind, confidence: 0.9, entities: {} },
     outcome: 'confirmed',
+    via: 'form',
     action: next,
   });
   const failedPath = (next) =>

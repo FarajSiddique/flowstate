@@ -33,11 +33,11 @@ function loadEnv(provider) {
   return { ...process.env, AI_PROVIDER: provider, NODE_ENV: 'production' };
 }
 
-async function classify(engine, fixture) {
+async function classify(engine, fixture, lookup) {
   const start = performance.now();
 
   try {
-    const decision = await engine.classifyIntent({ text: fixture.text, context });
+    const decision = await engine.classifyIntent({ text: fixture.text, context }, lookup);
 
     return {
       ...fixture,
@@ -128,12 +128,26 @@ async function printComparison(summary, path) {
 }
 
 const fixtures = JSON.parse(await readFile(values.fixtures, 'utf8'));
+const savedItems = JSON.parse(await readFile('evals/saved-items.json', 'utf8'));
+
+// Stands in for the user's saved items: titles containing every word of the phrase.
+const lookup = {
+  async findTargets(phrase, kinds) {
+    const words = phrase.toLowerCase().split(/\s+/);
+
+    return savedItems.filter(
+      (item) =>
+        kinds.includes(item.kind) && words.every((word) => item.title.toLowerCase().includes(word)),
+    );
+  },
+};
+
 const engine = getDecisionEngine(loadEnv(values.provider));
 const results = [];
 
 // Sequential, so jev latency reflects single requests and stays within rate limits.
 for (const fixture of fixtures) {
-  results.push(await classify(engine, fixture));
+  results.push(await classify(engine, fixture, lookup));
 }
 
 const summary = summarize(results);

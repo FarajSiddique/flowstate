@@ -1,6 +1,19 @@
-import type { HighlightField, Intent, IntentDecision } from '@nexui/types';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  canCommit,
+  isChangeAction,
+  isChangeIntent,
+  type ChangeAction,
+  type ChangeIntent,
+  type HighlightField,
+  type Intent,
+  type IntentAction,
+  type IntentDecision,
+} from '@nexui/types';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { withTarget } from '@/lib/change-actions';
+import { commitLabel } from '@/lib/commit-label';
+import { localToday } from '@/lib/form-values';
 import { previewEmphasis, type PreviewEmphasis } from '@/lib/intent-confidence';
 import {
   displayDate,
@@ -25,10 +38,10 @@ interface Draft {
   rows: DetailRow[];
 }
 
-const CARD_COPY: Record<
-  Exclude<Intent, 'UNKNOWN'>,
-  { label: string; tentative: string; action: string }
-> = {
+// Intents that preview a new item or a search; change intents get their own card.
+type DraftIntent = Exclude<Intent, 'UNKNOWN' | ChangeIntent>;
+
+const CARD_COPY: Record<DraftIntent, { label: string; tentative: string; action: string }> = {
   CREATE_EVENT: { label: 'New event', tentative: 'Maybe a new event', action: 'Review event' },
   CREATE_TASK: { label: 'New task', tentative: 'Maybe a new task', action: 'Review task' },
   CREATE_NOTE: { label: 'New note', tentative: 'Maybe a new note', action: 'Review note' },
@@ -109,23 +122,81 @@ function searchDraft({ action, entities }: IntentDecision): Draft {
   };
 }
 
-const DRAFTS = {
+const DRAFTS: Record<DraftIntent, (decision: IntentDecision) => Draft> = {
   CREATE_EVENT: eventDraft,
   CREATE_TASK: taskDraft,
   CREATE_NOTE: noteDraft,
   SEARCH: searchDraft,
 };
 
+interface PreviewActions {
+  busy: boolean;
+  error: string | null;
+  onCommit: (action: IntentAction) => void;
+  onReview: (action?: IntentAction) => void;
+  onCreateInstead: (phrase: string) => void;
+}
+
+function CardButtons({
+  label,
+  tentative,
+  busy,
+  error,
+  onPress,
+  onEdit,
+}: {
+  label: string;
+  tentative: boolean;
+  busy: boolean;
+  error: string | null;
+  onPress: () => void;
+  onEdit?: () => void;
+}) {
+  return (
+    <View style={styles.buttons}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy, disabled: busy }}
+        disabled={busy}
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.button,
+          tentative && styles.buttonTentative,
+          (pressed || busy) && styles.pressed,
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator color={tentative ? colors.ink : colors.page} />
+        ) : (
+          <Text style={[styles.buttonText, tentative && styles.buttonTextTentative]}>{label}</Text>
+        )}
+      </Pressable>
+      {onEdit ? (
+        <Pressable accessibilityRole="button" disabled={busy} onPress={onEdit} style={styles.edit}>
+          <Text style={styles.editText}>Edit</Text>
+        </Pressable>
+      ) : null}
+      {error ? (
+        <Text accessibilityLiveRegion="polite" style={styles.error}>
+          {error}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 function PreviewCard({
   decision,
   intent,
   emphasis,
-  onContinue,
-}: {
+  busy,
+  error,
+  onCommit,
+  onReview,
+}: PreviewActions & {
   decision: IntentDecision;
-  intent: Exclude<Intent, 'UNKNOWN'>;
+  intent: DraftIntent;
   emphasis: PreviewEmphasis;
-  onContinue: () => void;
 }) {
   const { title, rows } = DRAFTS[intent](decision);
 
@@ -136,6 +207,7 @@ function PreviewCard({
   const copy = CARD_COPY[intent];
   const marked = new Set(decision.highlights?.map((span) => span.field));
   const tentative = emphasis === 'medium';
+  const commit = canCommit(decision) ? decision.action : undefined;
 
   return (
     <View style={[styles.card, tentative && styles.cardTentative]}>
@@ -170,30 +242,148 @@ function PreviewCard({
           )}
         </View>
       ) : null}
-      <Pressable
-        accessibilityRole="button"
-        onPress={onContinue}
-        style={({ pressed }) => [
-          styles.button,
-          tentative && styles.buttonTentative,
-          pressed && styles.pressed,
-        ]}
-      >
-        <Text style={[styles.buttonText, tentative && styles.buttonTextTentative]}>
-          {copy.action}
-        </Text>
-      </Pressable>
+      {commit ? (
+        <CardButtons
+          label={commitLabel(commit)}
+          tentative={tentative}
+          busy={busy}
+          error={error}
+          onPress={() => onCommit(commit)}
+          onEdit={() => onReview()}
+        />
+      ) : (
+        <CardButtons
+          label={copy.action}
+          tentative={tentative}
+          busy={busy}
+          error={error}
+          onPress={() => onReview()}
+        />
+      )}
+    </View>
+  );
+}
+
+const CHANGE_COPY: Record<ChangeIntent, { label: string; tentative: string }> = {
+  COMPLETE: { label: 'Mark done', tentative: 'Maybe mark done' },
+  RESCHEDULE: { label: 'Move', tentative: 'Maybe move' },
+  APPEND: { label: 'Add to note', tentative: 'Maybe add to a note' },
+};
+
+// Acts on a saved item: one match commits, several ask "Which one?", none offers a new task.
+function ChangeCard({
+  decision,
+  action,
+  emphasis,
+  busy,
+  error,
+  onCommit,
+  onReview,
+  onCreateInstead,
+}: PreviewActions & { decision: IntentDecision; action: ChangeAction; emphasis: PreviewEmphasis }) {
+  const copy = CHANGE_COPY[action.kind];
+  const tentative = emphasis === 'medium';
+  const { target } = action;
+
+  function pick(ref: ChangeAction['alternatives'][number]) {
+    const picked = withTarget(action, ref, localToday());
+
+    if (picked.kind === 'RESCHEDULE' && !picked.to) {
+      onReview(picked);
+
+      return;
+    }
+
+    onCommit(picked);
+  }
+
+  let body;
+
+  if (target) {
+    // Below the confidence threshold, Continue opens the form instead of saving.
+    // A RESCHEDULE missing `to` is already below threshold, so it lands here too.
+    const commit = canCommit(decision);
+    let detail: string | null = null;
+
+    if (action.kind === 'RESCHEDULE') {
+      const now = displayLocalDateTime(target.when);
+
+      detail = now ? `Now: ${now}` : 'Now: unscheduled';
+    } else if (action.kind === 'APPEND') {
+      detail = `Add: ${action.text}`;
+    }
+
+    body = (
+      <>
+        <Text style={styles.title}>{target.title}</Text>
+        {detail ? (
+          <Text numberOfLines={3} style={styles.value}>
+            {detail}
+          </Text>
+        ) : null}
+        <CardButtons
+          label={commit ? commitLabel(action) : 'Continue'}
+          tentative={tentative}
+          busy={busy}
+          error={error}
+          onPress={() => (commit ? onCommit(action) : onReview(action))}
+          onEdit={action.kind === 'COMPLETE' ? undefined : () => onReview(action)}
+        />
+      </>
+    );
+  } else if (action.alternatives.length > 0) {
+    body = (
+      <>
+        <Text style={styles.title}>Which one?</Text>
+        <View style={styles.choices}>
+          {action.alternatives.map((ref) => (
+            <Pressable
+              key={`${ref.kind}:${ref.id}`}
+              accessibilityRole="button"
+              disabled={busy}
+              onPress={() => pick(ref)}
+              style={({ pressed }) => [styles.choice, pressed && styles.pressed]}
+            >
+              <Text style={styles.choiceTitle}>{ref.title}</Text>
+              <Text style={styles.kind}>
+                {displayLocalDateTime(ref.when) ?? displayTitle(ref.kind)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+      </>
+    );
+  } else {
+    body = (
+      <>
+        <Text style={styles.value}>{`No open item matches '${action.phrase}'.`}</Text>
+        <CardButtons
+          label={`Create task "${action.phrase}"`}
+          tentative
+          busy={false}
+          error={null}
+          onPress={() => onCreateInstead(action.phrase)}
+        />
+      </>
+    );
+  }
+
+  return (
+    <View style={[styles.card, tentative && styles.cardTentative]}>
+      <View style={styles.header}>
+        <Text style={styles.kind}>{tentative ? copy.tentative : copy.label}</Text>
+        <Text style={styles.kind}>{Math.round(decision.confidence * 100)}% sure</Text>
+      </View>
+      {body}
     </View>
   );
 }
 
 export function IntentPreview({
   decision,
-  onContinue,
-}: {
-  decision: IntentDecision | null;
-  onContinue: () => void;
-}) {
+  ...actions
+}: PreviewActions & { decision: IntentDecision | null }) {
   if (!decision || decision.intent === 'UNKNOWN') {
     return null;
   }
@@ -204,13 +394,14 @@ export function IntentPreview({
     return null;
   }
 
+  if (isChangeIntent(decision.intent)) {
+    return decision.action && isChangeAction(decision.action) ? (
+      <ChangeCard decision={decision} action={decision.action} emphasis={emphasis} {...actions} />
+    ) : null;
+  }
+
   return (
-    <PreviewCard
-      decision={decision}
-      intent={decision.intent}
-      emphasis={emphasis}
-      onContinue={onContinue}
-    />
+    <PreviewCard decision={decision} intent={decision.intent} emphasis={emphasis} {...actions} />
   );
 }
 
@@ -241,7 +432,6 @@ const styles = StyleSheet.create({
   value: { fontFamily: fonts.input, fontSize: 16, lineHeight: 22, color: colors.ink },
   valueMarked: { borderRadius: 4, paddingHorizontal: 4, marginHorizontal: -4, overflow: 'hidden' },
   button: {
-    marginTop: 6,
     paddingVertical: 14,
     borderRadius: 999,
     backgroundColor: colors.ink,
@@ -252,4 +442,23 @@ const styles = StyleSheet.create({
   buttonText: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.page, textAlign: 'center' },
   buttonTextTentative: { color: colors.ink },
   pressed: { opacity: 0.7 },
+  buttons: { marginTop: 6, gap: 10 },
+  edit: { alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16 },
+  editText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.ink,
+    textDecorationLine: 'underline',
+  },
+  error: { fontFamily: fonts.body, fontSize: 14, lineHeight: 20, color: colors.danger },
+  choices: { gap: 8 },
+  choice: {
+    minHeight: 44,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.line,
+  },
+  choiceTitle: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.ink },
 });

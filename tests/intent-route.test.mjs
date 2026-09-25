@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { OPTIONS, POST } from '../apps/api/src/app/api/intent/route.ts';
-import { mockSupabaseAuth, signToken } from './support/supabase-auth.mjs';
+import { TASK_ID, taskRow } from './support/records.mjs';
+import { mockSupabaseAuth, signToken, upstreamCall } from './support/supabase-auth.mjs';
 
 function request(body, token = signToken()) {
   const headers = token ? { Authorization: `Bearer ${token}` } : {};
@@ -103,4 +104,37 @@ test('route resolves actions against the client clock and rejects an invalid con
   );
   assert.equal(invalid.status, 400);
   assert.deepEqual(await invalid.json(), { error: 'Invalid request context.' });
+});
+
+test("a change phrase is matched against the signed-in user's open items", async (t) => {
+  const token = signToken();
+  const upstream = configure(t, { AI_PROVIDER: 'mock' }, async (input) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+
+    return Response.json(url.pathname === '/rest/v1/tasks' ? [taskRow] : []);
+  });
+  const context = { now: '2026-09-24T16:00:00Z', timeZone: 'America/New_York' };
+  const response = await POST(
+    request(JSON.stringify({ text: 'done with call mom', context }), token),
+  );
+  assert.equal(response.status, 200);
+  const decision = await response.json();
+  assert.equal(decision.intent, 'COMPLETE');
+  assert.deepEqual(decision.action.target, {
+    kind: 'task',
+    id: TASK_ID,
+    title: 'Call mom',
+    when: { date: '2026-09-25', time: '15:00' },
+  });
+
+  const calls = upstream.mock.calls.map((_call, index) => upstreamCall(upstream, index));
+  assert.deepEqual(calls.map((call) => call.url.pathname).sort(), [
+    '/rest/v1/events',
+    '/rest/v1/notes',
+    '/rest/v1/tasks',
+  ]);
+  const tasks = calls.find((call) => call.url.pathname === '/rest/v1/tasks');
+  assert.equal(tasks.headers.get('authorization'), `Bearer ${token}`);
+  assert.equal(tasks.url.searchParams.get('completed_at'), 'is.null');
+  assert.deepEqual(tasks.url.searchParams.getAll('title'), ['ilike.%call%', 'ilike.%mom%']);
 });

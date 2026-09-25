@@ -9,6 +9,7 @@ import {
   savedItemSchema,
   searchResponseSchema,
   timelineResponseSchema,
+  undoResponseSchema,
   type HealthResponse,
   type IntentAction,
   type IntentContext,
@@ -20,6 +21,7 @@ import {
   type SavedItem,
   type SearchResponse,
   type TimelineResponse,
+  type UndoResponse,
 } from '@nexui/types';
 
 import { fetchWithSession } from './authenticated-fetch';
@@ -225,4 +227,9 @@ export function updateItem(
     },
     savedItemSchema,
   );
+}
+
+// Reverses an instant save or change; the server refuses after 60 seconds or an edit.
+export function undoIntentEvent(eventId: string): Promise<UndoResponse> {
+  return sendJson(`/api/intent-events/${eventId}/undo`, { method: 'POST' }, undoResponseSchema);
 }

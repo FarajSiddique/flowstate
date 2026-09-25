@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { JevDecisionEngine } from '../apps/api/src/lib/decision-engine/jev-decision-engine.ts';
+import { EVENT_ID, TASK_ID } from './support/records.mjs';
 
 const config = { apiKey: 'test-secret', model: 'typesafe-ai/jev', timeoutMs: 100 };
 const unknown = { intent: 'UNKNOWN', confidence: 0, entities: {} };
@@ -52,9 +53,12 @@ test('calls the documented Gateway evaluation endpoint with the configured model
   assert.equal(request.body.model, 'typesafe-ai/jev');
   assert.deepEqual(request.body.state, { text: input.text });
   assert.deepEqual(Object.keys(request.body.questions.intent.criteria).sort(), [
+    'APPEND',
+    'COMPLETE',
     'CREATE_EVENT',
     'CREATE_NOTE',
     'CREATE_TASK',
+    'RESCHEDULE',
     'SEARCH',
     'UNKNOWN',
   ]);
@@ -126,6 +130,17 @@ test('supports Gateway answers without a separate confidence field', async () =>
   assert.equal((await engineFor(result).classifyIntent(input)).confidence, 0.98);
 });
 
+test('probabilities can omit unoffered choices, falling back to 0 confidence for the chosen one', async () => {
+  const missingOther = evaluation();
+  delete missingOther.answers.intent.probabilities.CREATE_TASK;
+  assert.equal((await engineFor(missingOther).classifyIntent(input)).confidence, 0.96);
+
+  const missingChoice = evaluation();
+  delete missingChoice.answers.intent.confidence;
+  delete missingChoice.answers.intent.probabilities.CREATE_EVENT;
+  assert.equal((await engineFor(missingChoice).classifyIntent(input)).confidence, 0);
+});
+
 test('rejects malformed or out-of-contract Gateway answers', async () => {
   const invalid = [
     null,
@@ -135,9 +150,6 @@ test('rejects malformed or out-of-contract Gateway answers', async () => {
     evaluation('CREATE_EVENT', 1.5),
     evaluation('CREATE_EVENT', 0.9, -1),
   ];
-  const missing = evaluation();
-  delete missing.answers.intent.probabilities.CREATE_TASK;
-  invalid.push(missing);
   for (const result of invalid) {
     assert.deepEqual(await engineFor(result).classifyIntent(input), unknown);
   }
@@ -268,4 +280,76 @@ test('plain input asks only the core and enum questions; UNKNOWN has no action',
   const decision = await engine.classifyIntent({ text: 'asdf banana purple' });
   assert.deepEqual(Object.keys(questions).sort(), ['intent', 'priority', 'ready', 'scope']);
   assert.equal('action' in decision, false);
+});
+
+const callMom = { kind: 'task', id: TASK_ID, title: 'Call mom', when: null };
+const callDad = { kind: 'task', id: EVENT_ID, title: 'Call dad', when: null };
+const shortlist = { findTargets: async () => [callMom, callDad] };
+const targetAnswer = (choice, confidence = 0.9) => ({
+  type: 'choice',
+  choice,
+  confidence,
+  probabilities: { [choice]: confidence },
+});
+const withTarget = (answer) => {
+  const result = evaluation('COMPLETE');
+  result.answers.target = answer;
+
+  return result;
+};
+
+test('a change intent asks Jev to pick among the shortlisted items', async () => {
+  let body;
+  const engine = new JevDecisionEngine(config, async (_url, options) => {
+    body = JSON.parse(options.body);
+
+    return Response.json(withTarget(targetAnswer('item_1')));
+  });
+  const decision = await engine.classifyIntent({ text: 'done with call mom' }, shortlist);
+  assert.equal(decision.intent, 'COMPLETE');
+  assert.deepEqual(decision.action, {
+    kind: 'COMPLETE',
+    phrase: 'call mom',
+    target: callMom,
+    alternatives: [],
+  });
+  assert.deepEqual(Object.keys(body.questions.target.criteria), ['item_1', 'item_2', 'none']);
+  assert.match(body.questions.target.criteria.item_1, /Call mom/);
+});
+
+test('an unsure pick lists the shortlist; "none" means no match', async () => {
+  const unsure = await engineFor(withTarget(targetAnswer('item_2', 0.3))).classifyIntent(
+    { text: 'done with call mom' },
+    shortlist,
+  );
+  assert.deepEqual(unsure.action.alternatives, [callMom, callDad]);
+  assert.equal(unsure.action.target, null);
+
+  const none = await engineFor(withTarget(targetAnswer('none'))).classifyIntent(
+    { text: 'done with call mom' },
+    shortlist,
+  );
+  assert.deepEqual(none.action, {
+    kind: 'COMPLETE',
+    phrase: 'call mom',
+    target: null,
+    alternatives: [],
+  });
+});
+
+test('without a lookup, a change phrase still classifies with no target question', async () => {
+  let body;
+  const engine = new JevDecisionEngine(config, async (_url, options) => {
+    body = JSON.parse(options.body);
+
+    return Response.json(evaluation('COMPLETE'));
+  });
+  const decision = await engine.classifyIntent({ text: 'done with call mom' });
+  assert.equal(body.questions.target, undefined);
+  assert.deepEqual(decision.action, {
+    kind: 'COMPLETE',
+    phrase: 'call mom',
+    target: null,
+    alternatives: [],
+  });
 });
