@@ -11,9 +11,11 @@ API; the mobile app never queries the database.
    the last being `input_via` — saves a `CREATE_*` item or applies a `COMPLETE`,
    `RESCHEDULE` or `APPEND` change, and appends an `intent_events` row, in one
    transaction. It returns `{ eventId, item }`: `eventId` is the log row's id (for
-   undo), `item` is the saved or changed record. Closing the sheet logs `dismissed`
-   instead. A change that touches no row (wrong kind, another user's item, already
-   complete, or nothing matched) raises `NXU01`, which the API maps to 409.
+   undo), `item` is the saved or changed record, or `null` when nothing was saved
+   (a `dismissed` outcome, or a confirmed `SEARCH`). Closing the sheet logs
+   `dismissed` instead. A change that touches no row (wrong kind, another user's
+   item, already complete, or nothing matched) raises `NXU01`, which the API maps
+   to 409.
 3. The home timeline pages through `GET /api/timeline` (`timeline_page`, keyset on
    `sort_at desc, id desc`, opaque cursor). Undated items sort by creation time.
 4. `PATCH /api/items/:kind/:id` edits fields and/or sets `completed`.

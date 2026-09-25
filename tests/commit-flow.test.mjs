@@ -77,7 +77,9 @@ test('return commits sure drafts, opens the form for unsure creates, and ignores
     'open-form',
   );
   assert.equal(submitStep(decide(complete)), 'commit');
+  assert.equal(submitStep(decide(complete, 0.7)), 'open-form');
   assert.equal(submitStep(decide(move)), 'ignore');
+  assert.equal(submitStep(decide(move, 0.7)), 'ignore');
   assert.equal(submitStep({ intent: 'UNKNOWN', confidence: 0.3, entities: {} }), 'ignore');
   assert.equal(submitStep(null), 'ignore');
 });

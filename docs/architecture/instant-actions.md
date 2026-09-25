@@ -33,8 +33,9 @@ commits. The same function backs the preview card's button label
 skips the wait: `resolveNow()` returns the prediction already in flight or already
 resolved for the current text, or starts one. A decision for text the user has since
 changed is never committed. `submitStep()` (`lib/submit-decision.ts`) then decides:
-commit, open the form, or do nothing (an unsure change settles on the card instead —
-see below).
+commit, open the form, or do nothing. A change below the confidence threshold opens
+the form (`ChangeSheet`) when it has a target; only a targetless change settles on
+the card instead — see below.
 
 On native, `TextInput`'s `submitBehavior="submit"` fires `onSubmitEditing` for
 Return. React Native Web ignores `submitBehavior` for multiline inputs and only
@@ -80,7 +81,7 @@ apps/api/src/lib/decision-engine/change-actions.ts: findChangeMatch(text)
       Jev: a `target` choice question, "none" included; a pick below
            FIELD_CONFIDENCE (0.5) counts as ambiguous
       Mock: exactly one shortlisted title containing the phrase; 0 or 2+ is ambiguous
-  → buildChangeAction(match, shortlist, choice) → ChangeAction
+  → buildChangeAction(match, shortlist, choice, reference) → ChangeAction
       one match      → target set, alternatives empty
       ambiguous      → target null, alternatives holds the shortlist (≤5)
       no match       → both empty
@@ -94,12 +95,13 @@ the signed-in user's open (`completed_at is null`) items of the kinds the intent
 allows (`TARGET_KINDS`), ranked by closest date then most recently updated, capped
 at 5.
 
-On the card (`ChangeCard` in `intent-previews.tsx`), one match commits like any
-other high-confidence draft. Several matches show "Which one?" with up to five
-rows; tapping one sets the target — `lib/change-actions.ts`'s `withTarget` also
-resolves `RESCHEDULE`'s `to` against that item's own date/time — and commits at
-once. No match offers "Create task '<phrase>'", which opens `DraftSheet` prefilled
-with the phrase as a title.
+On the card (`ChangeCard` in `intent-previews.tsx`), one match commits at once when
+`canCommit(decision)` is true; below the threshold the button reads "Continue" and
+opens `ChangeSheet` instead. Several matches show "Which one?" with up to five rows;
+tapping one sets the target — `lib/change-actions.ts`'s `withTarget` also resolves
+`RESCHEDULE`'s `to` against that item's own date/time — and commits at once, since
+the spec allows a pick to commit regardless of confidence. No match offers "Create
+task '<phrase>'", which opens `DraftSheet` prefilled with the phrase as a title.
 
 ## Tests
 

@@ -24,6 +24,9 @@ export const NO_TARGETS: TargetLookup = { findTargets: async () => [] };
 
 export const MAX_TARGETS = 5;
 
+// Matches the contract's phrase schema (packages/types), which caps at 200.
+const MAX_PHRASE_LENGTH = 200;
+
 export interface ChangeMatch {
   intent: ChangeIntent;
   phrase: string;
@@ -131,7 +134,9 @@ export function findChangeMatch(text: string, reference: Reference): ChangeMatch
     const phrase = match ? cleanPhrase(match[1]!) : '';
 
     if (phrase) {
-      return { intent: 'COMPLETE', phrase, toParsed: null, text: null };
+      return phrase.length > MAX_PHRASE_LENGTH
+        ? null
+        : { intent: 'COMPLETE', phrase, toParsed: null, text: null };
     }
   }
 
@@ -141,7 +146,11 @@ export function findChangeMatch(text: string, reference: Reference): ChangeMatch
     const phrase = cleanPhrase(move[1]!);
     const toParsed = parseWhenParts(move[2]!, reference);
 
-    return phrase && toParsed ? { intent: 'RESCHEDULE', phrase, toParsed, text: null } : null;
+    if (!phrase || !toParsed || phrase.length > MAX_PHRASE_LENGTH) {
+      return null;
+    }
+
+    return { intent: 'RESCHEDULE', phrase, toParsed, text: null };
   }
 
   const append = APPEND_QUOTED.exec(input) ?? APPEND_PLAIN.exec(input);
@@ -150,7 +159,11 @@ export function findChangeMatch(text: string, reference: Reference): ChangeMatch
     const phrase = cleanPhrase(append[2]!, true);
     const addition = append[1]!.trim();
 
-    return phrase && addition ? { intent: 'APPEND', phrase, toParsed: null, text: addition } : null;
+    if (!phrase || !addition || phrase.length > MAX_PHRASE_LENGTH) {
+      return null;
+    }
+
+    return { intent: 'APPEND', phrase, toParsed: null, text: addition };
   }
 
   return null;

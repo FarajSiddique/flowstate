@@ -80,7 +80,7 @@ export default function HomeScreen() {
       void queryClient.invalidateQueries({ queryKey: TIMELINE_KEY });
 
       // Leaves text the user typed since the commit alone, instead of erasing it.
-      if (textRef.current === committed) {
+      if (textRef.current.trim() === committed) {
         setText('');
       }
 

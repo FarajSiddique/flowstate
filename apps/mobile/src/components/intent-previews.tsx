@@ -300,7 +300,9 @@ function ChangeCard({
   let body;
 
   if (target) {
-    const needsTime = action.kind === 'RESCHEDULE' && !action.to;
+    // Below the confidence threshold, Continue opens the form instead of saving.
+    // A RESCHEDULE missing `to` is already below threshold, so it lands here too.
+    const commit = canCommit(decision);
     let detail: string | null = null;
 
     if (action.kind === 'RESCHEDULE') {
@@ -320,11 +322,11 @@ function ChangeCard({
           </Text>
         ) : null}
         <CardButtons
-          label={commitLabel(action)}
+          label={commit ? commitLabel(action) : 'Continue'}
           tentative={tentative}
           busy={busy}
           error={error}
-          onPress={() => (needsTime ? onReview(action) : onCommit(action))}
+          onPress={() => (commit ? onCommit(action) : onReview(action))}
           onEdit={action.kind === 'COMPLETE' ? undefined : () => onReview(action)}
         />
       </>

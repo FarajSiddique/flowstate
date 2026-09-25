@@ -56,7 +56,7 @@ export function UndoToast() {
 
   return (
     <View style={styles.toast}>
-      <Text numberOfLines={2} style={styles.message}>
+      <Text accessibilityLiveRegion="polite" numberOfLines={2} style={styles.message}>
         {toast.message}
       </Text>
       {eventId ? (

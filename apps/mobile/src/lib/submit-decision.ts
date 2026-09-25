@@ -1,4 +1,4 @@
-import { canCommit, isChangeIntent, type IntentDecision } from '@nexui/types';
+import { canCommit, isChangeAction, isChangeIntent, type IntentDecision } from '@nexui/types';
 
 export type SubmitStep = 'commit' | 'open-form' | 'ignore';
 
@@ -18,9 +18,10 @@ export function submitStep(decision: IntentDecision | null): SubmitStep {
     return 'commit';
   }
 
-  // An unsure change is settled on the card: pick an item, or create one instead.
-  if (isChangeIntent(decision.intent)) {
-    return 'ignore';
+  // A change below the threshold opens the form when it has a target to act on;
+  // with no target it's settled on the card instead (pick an item, or create one).
+  if (isChangeIntent(decision.intent) && isChangeAction(decision.action)) {
+    return decision.action.target ? 'open-form' : 'ignore';
   }
 
   return 'open-form';

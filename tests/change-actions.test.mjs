@@ -66,6 +66,10 @@ test('create phrases, bare verbs and non-date destinations are not changes', () 
   }
 });
 
+test('a phrase longer than the contract allows is not a change', () => {
+  assert.equal(findChangeMatch('finished ' + 'x'.repeat(250), reference), null);
+});
+
 test('reads only the date and time parts the user said', () => {
   assert.deepEqual(parseWhenParts('friday at 4', reference), { date: '2026-09-25', time: '16:00' });
   assert.deepEqual(parseWhenParts('tomorrow', reference), { date: '2026-09-25', time: null });

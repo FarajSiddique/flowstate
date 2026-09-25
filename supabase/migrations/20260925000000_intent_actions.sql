@@ -233,7 +233,7 @@ begin
     where id = logged.note_id for update;
   end if;
 
-  if current_updated_at is null or current_updated_at <> logged.after_updated_at then
+  if current_updated_at is null or current_updated_at is distinct from logged.after_updated_at then
     raise exception using errcode = 'NXU09', message = 'Item was edited, so undo was skipped';
   end if;
 

@@ -68,6 +68,30 @@ begin
 end;
 $$;
 
+do $$
+declare
+  logged jsonb;
+  note_event_id uuid;
+  new_note_id uuid;
+begin
+  logged := public.record_intent(
+    'buy milk and eggs',
+    null,
+    '{"intent":"CREATE_NOTE","confidence":0.9,"entities":{}}',
+    'confirmed',
+    '{"kind":"CREATE_NOTE","title":"Buy milk and eggs","body":null}',
+    'America/New_York',
+    'instant'
+  );
+  note_event_id := (logged ->> 'eventId')::uuid;
+  new_note_id := (logged #>> '{item,id}')::uuid;
+
+  assert public.undo_intent(note_event_id) is null, 'undo should delete the created note';
+  assert (select count(*) from public.notes where id = new_note_id) = 0,
+    'undone note should be gone';
+end;
+$$;
+
 -- Remember the owner's task id for the other user's link attempt below.
 select set_config('rls_smoke.task_id', (select id::text from public.tasks limit 1), true);
 
@@ -123,6 +147,34 @@ begin
     raise exception 'log text must stay append-only';
   exception
     when insufficient_privilege then
+      null;
+  end;
+
+  -- A's task is still open (the earlier COMPLETE was undone), so a COMPLETE from B
+  -- that bypassed RLS would otherwise succeed.
+  begin
+    perform public.record_intent(
+      'done with call mom',
+      null,
+      '{"intent":"COMPLETE","confidence":0.9,"entities":{}}',
+      'confirmed',
+      jsonb_build_object(
+        'kind', 'COMPLETE',
+        'phrase', 'call mom',
+        'target', jsonb_build_object(
+          'kind', 'task',
+          'id', current_setting('rls_smoke.task_id')::uuid,
+          'title', 'Call mom',
+          'when', null
+        ),
+        'alternatives', '[]'::jsonb
+      ),
+      'America/New_York',
+      'instant'
+    );
+    raise exception 'other user must not complete it';
+  exception
+    when sqlstate 'NXU01' then
       null;
   end;
 end;
