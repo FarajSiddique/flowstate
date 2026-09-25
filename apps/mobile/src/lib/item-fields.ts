@@ -1,5 +1,6 @@
 import { intentActionSchema, searchScopeSchema, taskPrioritySchema } from '@nexui/types';
 import type {
+  ChangeAction,
   Intent,
   IntentAction,
   IntentDecision,
@@ -329,5 +330,57 @@ export function fieldsToPatch(
       return readEvent(fields, today);
     case 'note':
       return readNote(fields);
+  }
+}
+
+/** Prefills the move or append form from a change draft. */
+export function fieldsFromChange(action: ChangeAction, today: string = localToday()): FormFields {
+  const fields = { ...EMPTY_FIELDS, title: action.target?.title ?? '' };
+
+  switch (action.kind) {
+    case 'RESCHEDULE':
+      return { ...fields, ...whenFields(action.to ?? action.target?.when ?? null, today) };
+    case 'APPEND':
+      return { ...fields, body: action.text };
+    case 'COMPLETE':
+      return fields;
+  }
+}
+
+/** Reads the move or append form back into the change to confirm. */
+export function fieldsToChange(
+  action: ChangeAction,
+  fields: FormFields,
+  today: string,
+): FormResult<ChangeAction> {
+  switch (action.kind) {
+    case 'RESCHEDULE': {
+      const when = readWhen(fields, today);
+
+      if (!when.ok) {
+        return when;
+      }
+
+      if (!when.value) {
+        return { ok: false, error: 'Pick a new date.' };
+      }
+
+      return { ok: true, value: { ...action, to: when.value } };
+    }
+
+    case 'APPEND': {
+      const text = fields.body.trim();
+
+      if (!text) {
+        return { ok: false, error: 'Add some text.' };
+      }
+
+      return text.length > 2000
+        ? { ok: false, error: 'Keep it under 2,000 characters.' }
+        : { ok: true, value: { ...action, text } };
+    }
+
+    case 'COMPLETE':
+      return { ok: true, value: action };
   }
 }
