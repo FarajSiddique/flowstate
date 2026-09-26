@@ -32,6 +32,10 @@ The roadmap assumes more than the app has. These gaps set the order of the work.
 
 ### Layer 1: fixed shell
 
+> **Superseded (26 Sep 2026):** the shell is now Home · Tasks · (+) · Calendar · Notes, with
+> the + sheet as the only way into the Magic Bar. See [anchored-shell.md](anchored-shell.md).
+> The text below is kept for history until the shell ships.
+
 Never moved, hidden, reordered or relabelled by AI.
 
 - Bottom tabs: **Home · Tasks · Calendar · Notes**.
@@ -220,6 +224,9 @@ Every feature spec and PR that touches Home or the Magic Bar answers these:
 ## 5. Features
 
 ### 5.1 Anchored shell
+
+> **Superseded (26 Sep 2026):** build from [anchored-shell.md](anchored-shell.md), which also
+> narrows §5.2 (Home zones) and §5.4 (yellow as a brand accent).
 
 - **Problem:** Everything lives on one scrolling screen. Adaptive content has no stable
   place, and when the AI misreads something the user has no destination to fall back on.
