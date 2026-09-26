@@ -26,7 +26,6 @@ export function toSavedItem(kind: ItemKind, row: ItemRow): SavedItem {
     id: row.id,
     title: row.title,
     timeZone: row.time_zone,
-    completedAt: row.completed_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -37,6 +36,7 @@ export function toSavedItem(kind: ItemKind, row: ItemRow): SavedItem {
         ...base,
         due: localDateTime(row.due_date, row.due_time),
         priority: row.priority,
+        completedAt: row.completed_at,
       });
     case 'event':
       return savedItemSchema.parse({
@@ -52,10 +52,11 @@ export function toSavedItem(kind: ItemKind, row: ItemRow): SavedItem {
 }
 
 /**
- * Turns a validated patch into column updates. `completed` becomes a server timestamp.
+ * Turns a validated patch into column updates. A task's `completed` becomes a server
+ * timestamp.
  *
  * @example
- * toPatchColumns({ due: null, completed: true }, now)
+ * toPatchColumns({ due: null, completed: true }, now) // a task patch
  * // { due_date: null, due_time: null, completed_at: '2026-09-24T18:30:00.000Z' }
  */
 export function toPatchColumns(patch: ItemPatch, now: Date): Record<string, unknown> {
@@ -98,7 +99,7 @@ export function toPatchColumns(patch: ItemPatch, now: Date): Record<string, unkn
     set('body', patch.body);
   }
 
-  if (patch.completed !== undefined) {
+  if ('completed' in patch && patch.completed !== undefined) {
     columns.completed_at = patch.completed ? now.toISOString() : null;
   }
 

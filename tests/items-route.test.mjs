@@ -2,7 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PATCH } from '../apps/api/src/app/api/items/[kind]/[id]/route.ts';
-import { EVENT_ID, eventRow, savedEvent, savedTask, TASK_ID, taskRow } from './support/records.mjs';
+import {
+  EVENT_ID,
+  eventRow,
+  NOTE_ID,
+  savedEvent,
+  savedTask,
+  TASK_ID,
+  taskRow,
+} from './support/records.mjs';
 import { mockSupabaseAuth, signToken, upstreamCall } from './support/supabase-auth.mjs';
 
 function patch(kind, id, body, token = signToken()) {
@@ -37,12 +45,11 @@ test('completing a task stamps completed_at on that row only', async (t) => {
   assert.deepEqual(Object.keys(call.body), ['completed_at']);
 });
 
-test('an event can be rescheduled, re-staffed and completed in one request', async (t) => {
+test('an event can be rescheduled and re-staffed in one request', async (t) => {
   const upstream = mockSupabaseAuth(t, async () => Response.json([eventRow]));
   const response = await patch('event', EVENT_ID, {
     start: { date: '2026-09-27', time: '10:00' },
     attendees: ['Ana'],
-    completed: false,
   });
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), savedEvent);
@@ -50,8 +57,20 @@ test('an event can be rescheduled, re-staffed and completed in one request', asy
     start_date: '2026-09-27',
     start_time: '10:00',
     attendees: ['Ana'],
-    completed_at: null,
   });
+});
+
+test('events and notes cannot be completed', async (t) => {
+  const upstream = mockSupabaseAuth(t, async () => Response.json([eventRow]));
+  for (const [kind, id] of [
+    ['event', EVENT_ID],
+    ['note', NOTE_ID],
+  ]) {
+    const response = await patch(kind, id, { completed: true });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: 'Invalid changes.' });
+  }
+  assert.equal(upstream.mock.callCount(), 0);
 });
 
 test('unknown kinds, bad ids and rows RLS hides are all 404', async (t) => {

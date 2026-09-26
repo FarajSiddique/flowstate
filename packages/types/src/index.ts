@@ -188,7 +188,7 @@ export function isChangeAction(action: IntentAction): action is ChangeAction {
 
 // Which saved kinds each change intent may target.
 export const TARGET_KINDS = {
-  COMPLETE: ['task', 'event', 'note'],
+  COMPLETE: ['task'],
   RESCHEDULE: ['task', 'event'],
   APPEND: ['note'],
 } as const satisfies Record<ChangeIntent, readonly ItemKind[]>;
@@ -288,7 +288,6 @@ const savedItemBase = {
   id: itemIdSchema,
   title: z.string(),
   timeZone: z.string(),
-  completedAt: timestampSchema.nullable(),
   createdAt: timestampSchema,
   updatedAt: timestampSchema,
 };
@@ -298,6 +297,8 @@ export const savedTaskSchema = z.object({
   ...savedItemBase,
   due: localDateTimeSchema.nullable(),
   priority: taskPrioritySchema,
+  // Lists never show completed tasks; only a PATCH response carries the stamp.
+  completedAt: timestampSchema.nullable(),
 });
 
 export const savedEventSchema = z.object({
@@ -460,16 +461,15 @@ export const searchResponseSchema = z.object({ items: z.array(savedItemSchema) }
 
 export type SearchResponse = z.infer<typeof searchResponseSchema>;
 
-// Edits and completion share one PATCH; each kind accepts only its own fields.
+// Edits share one PATCH; each kind accepts only its own fields. Only tasks complete.
 const hasChanges = (patch: object): boolean => Object.keys(patch).length > 0;
-const completedField = { completed: z.boolean().optional() };
 
 export const taskPatchSchema = z
   .strictObject({
     title: itemTitleSchema.optional(),
     due: localDateTimeSchema.nullable().optional(),
     priority: taskPrioritySchema.optional(),
-    ...completedField,
+    completed: z.boolean().optional(),
   })
   .refine(hasChanges, 'Nothing to update.');
 
@@ -480,7 +480,6 @@ export const eventPatchSchema = z
     durationMin: z.number().int().min(1).max(1440).optional(),
     location: z.string().trim().max(200).nullable().optional(),
     attendees: attendeesSchema.optional(),
-    ...completedField,
   })
   .refine(hasChanges, 'Nothing to update.');
 
@@ -488,7 +487,6 @@ export const notePatchSchema = z
   .strictObject({
     title: itemTitleSchema.optional(),
     body: noteBodySchema.optional(),
-    ...completedField,
   })
   .refine(hasChanges, 'Nothing to update.');
 

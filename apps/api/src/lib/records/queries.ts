@@ -216,7 +216,7 @@ export async function undoIntent(
 }
 
 /**
- * Applies an edit and/or completion. A missing id and another user's row look the
+ * Applies an edit and/or (for a task) completion. A missing id and another user's row look the
  * same: RLS makes the update touch zero rows, which is reported as not found.
  */
 export async function updateItem(

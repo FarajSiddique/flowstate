@@ -111,6 +111,13 @@ test('a confirmed event needs `via`, and a confirmed change needs a fitting targ
     false,
   );
 
+  const eventDone = { ...complete, target: dentist };
+  assert.equal(
+    intentEventRequestSchema.safeParse({ ...confirmed, via: 'instant', action: eventDone }).success,
+    false,
+    'only tasks can be completed',
+  );
+
   const noteMove = { ...reschedule, target: tripNotes };
   const moveEvent = {
     text: 'move trip notes to friday',

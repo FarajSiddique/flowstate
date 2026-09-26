@@ -32,7 +32,7 @@ import { undoMessage } from '@/lib/commit-label';
 import { previewEmphasis } from '@/lib/intent-confidence';
 import { submitStep } from '@/lib/submit-decision';
 import { colors, fonts } from '@/lib/theme';
-import { TIMELINE_KEY, useCompleteItem, useTimeline } from '@/lib/use-timeline';
+import { TIMELINE_KEY, useCompleteTask, useTimeline } from '@/lib/use-timeline';
 import { useIntentPrediction } from '@/lib/use-intent-prediction';
 import { showUndo } from '@/stores/use-undo-store';
 
@@ -51,7 +51,7 @@ export default function HomeScreen() {
   const { text, setText, decision, isPredicting, error, resolveNow } = useIntentPrediction();
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const timeline = useTimeline();
-  const complete = useCompleteItem();
+  const completeTask = useCompleteTask();
   const health = useQuery({
     queryKey: ['health'],
     queryFn: ({ signal }) => getHealth(signal),
@@ -287,7 +287,11 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <TimelineRow
             item={item}
-            onToggle={() => complete.mutate({ item, completed: item.completedAt === null })}
+            onComplete={() => {
+              if (item.kind === 'task') {
+                completeTask.mutate(item);
+              }
+            }}
             onOpen={() => setSheet({ type: 'edit', item })}
           />
         )}

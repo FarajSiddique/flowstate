@@ -59,14 +59,27 @@ closing either without confirming logs a `dismissed` event, as before.
 
 ## The Undo card
 
-`stores/use-undo-store.ts` holds one `{ eventId, message, shownAt } | null` (or
-`eventId: null` for a plain status line). `components/undo-toast.tsx` renders it
-above the Magic Bar and announces the message for screen readers; the Undo button
-has a 44pt touch target. The card hides after `UNDO_MS` (8 seconds); a newer commit
-replaces it outright. Pressing Undo calls `POST /api/intent-events/:id/undo`,
-invalidates `['timeline']`, and shows a status line ("Undone", or the server's
+`stores/use-undo-store.ts` holds one `{ undo, message, shownAt } | null`. `undo` is
+either `{ type: 'intent', eventId }` for a logged Magic Bar action or
+`{ type: 'completion', task }` for a task completed from its checkbox (`null` for a
+plain status line). `components/undo-toast.tsx` renders it above the Magic Bar and
+announces the message for screen readers; the Undo button has a 44pt touch target.
+The card hides after `UNDO_MS` (8 seconds); a newer commit or completion replaces it
+outright. Pressing Undo calls `POST /api/intent-events/:id/undo` for a logged action,
+or `PATCH /api/items/task/:id` with `{ completed: false }` to reopen a task; either
+way it invalidates `['timeline']` and shows a status line ("Undone", or the server's
 refusal message) for `STATUS_MS` (2.5 seconds). The store is cleared on sign-out,
 next to `queryClient.clear()`.
+
+## Completing a task from its checkbox
+
+Only tasks have a checkbox (`components/timeline-row.tsx`); events and notes don't.
+Tapping it skips the Magic Bar entirely: `useCompleteTask` (`lib/use-timeline.ts`)
+removes the task from the cached timeline right away, sends
+`PATCH /api/items/task/:id` with `{ completed: true }`, and on success shows the
+Undo card via `showCompletionUndo`. A refetch already in flight is cancelled first
+so it can't race the restored task back out after Undo. On failure the timeline
+refetch brings the task back, and a status line explains the failure.
 
 ## Finding a change intent's target
 

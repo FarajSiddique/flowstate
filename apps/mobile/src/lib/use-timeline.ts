@@ -4,11 +4,12 @@ import {
   useQueryClient,
   type InfiniteData,
 } from '@tanstack/react-query';
-import type { SavedItem, TimelineResponse } from '@nexui/types';
+import type { SavedTask, TimelineResponse } from '@nexui/types';
 import { useMemo } from 'react';
 
 import { getTimelinePage, updateItem } from './api';
-import { withCompletedAt } from './timeline-pages';
+import { withoutItem } from './timeline-pages';
+import { showCompletionUndo, showUndoStatus } from '@/stores/use-undo-store';
 
 export const TIMELINE_KEY = ['timeline'] as const;
 
@@ -25,25 +26,25 @@ export function useTimeline() {
   return { ...query, items };
 }
 
-/** Toggles completion immediately and rolls back if the server refuses. */
-export function useCompleteItem() {
+/**
+ * Completes a task: it leaves the list at once, the server keeps it for 30 days, and the
+ * card offers Undo. If the server refuses, the refetch brings the task back (restoring a
+ * snapshot could undo a sibling completion that succeeded meanwhile).
+ */
+export function useCompleteTask() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ item, completed }: { item: SavedItem; completed: boolean }) =>
-      updateItem(item, { completed }),
-    onMutate: async ({ item, completed }) => {
+    mutationFn: (task: SavedTask) => updateItem(task, { completed: true }),
+    onMutate: async (task) => {
       await queryClient.cancelQueries({ queryKey: TIMELINE_KEY });
-      const previous = queryClient.getQueryData<InfiniteData<TimelineResponse>>(TIMELINE_KEY);
-
       queryClient.setQueryData<InfiniteData<TimelineResponse>>(TIMELINE_KEY, (data) =>
-        withCompletedAt(data, item, completed ? new Date().toISOString() : null),
+        withoutItem(data, task),
       );
-
-      return { previous };
     },
-    onError: (_error, _variables, context) => {
-      queryClient.setQueryData(TIMELINE_KEY, context?.previous);
+    onSuccess: (_saved, task) => showCompletionUndo(task, `Marked done: ${task.title}`),
+    onError: () => {
+      showUndoStatus('Could not mark it done. Check your connection.');
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: TIMELINE_KEY }),
   });

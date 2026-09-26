@@ -27,8 +27,8 @@ test('a malformed row throws instead of reaching the client', () => {
 test('patches become column updates, and completion is stamped by the server', () => {
   const now = new Date('2026-09-24T18:30:00.000Z');
   assert.deepEqual(
-    toPatchColumns({ start: { date: '2026-09-27', time: null }, completed: true }, now),
-    { start_date: '2026-09-27', start_time: null, completed_at: '2026-09-24T18:30:00.000Z' },
+    toPatchColumns({ due: { date: '2026-09-27', time: null }, completed: true }, now),
+    { due_date: '2026-09-27', due_time: null, completed_at: '2026-09-24T18:30:00.000Z' },
   );
   assert.deepEqual(toPatchColumns({ due: null, completed: false }, now), {
     due_date: null,

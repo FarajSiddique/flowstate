@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ApiError, undoIntentEvent } from '@/lib/api';
+import { ApiError, undoIntentEvent, updateItem } from '@/lib/api';
 import { colors, fonts } from '@/lib/theme';
 import { TIMELINE_KEY } from '@/lib/use-timeline';
 import {
@@ -11,14 +11,24 @@ import {
   STATUS_MS,
   UNDO_MS,
   useUndoStore,
+  type UndoTarget,
 } from '@/stores/use-undo-store';
+
+// A logged action is reversed by the server; a checkbox completion just reopens the task.
+function runUndo(target: UndoTarget): Promise<unknown> {
+  return target.type === 'intent'
+    ? undoIntentEvent(target.eventId)
+    : updateItem(target.task, { completed: false });
+}
 
 // Shows what was just saved or changed, with Undo for 8 seconds.
 export function UndoToast() {
   const queryClient = useQueryClient();
   const toast = useUndoStore((state) => state.toast);
   const undo = useMutation({
-    mutationFn: undoIntentEvent,
+    mutationFn: runUndo,
+    // A refetch started before Undo could land after it and hide the restored item.
+    onMutate: () => queryClient.cancelQueries({ queryKey: TIMELINE_KEY }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TIMELINE_KEY });
       showUndoStatus('Undone');
@@ -42,7 +52,7 @@ export function UndoToast() {
           clearUndo();
         }
       },
-      toast.eventId ? UNDO_MS : STATUS_MS,
+      toast.undo ? UNDO_MS : STATUS_MS,
     );
 
     return () => clearTimeout(timer);
@@ -52,19 +62,19 @@ export function UndoToast() {
     return null;
   }
 
-  const { eventId } = toast;
+  const target = toast.undo;
 
   return (
     <View style={styles.toast}>
       <Text accessibilityLiveRegion="polite" numberOfLines={2} style={styles.message}>
         {toast.message}
       </Text>
-      {eventId ? (
+      {target ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Undo"
           disabled={undo.isPending}
-          onPress={() => undo.mutate(eventId)}
+          onPress={() => undo.mutate(target)}
           style={({ pressed }) => [styles.undo, (pressed || undo.isPending) && styles.dimmed]}
         >
           <Text style={styles.undoText}>{undo.isPending ? 'Undoing…' : 'Undo'}</Text>

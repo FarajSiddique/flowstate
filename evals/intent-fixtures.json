@@ -51,7 +51,7 @@
   },
   { "text": "done with the report", "expectedIntent": "COMPLETE" },
   { "text": "finished call mom", "expectedIntent": "COMPLETE" },
-  { "text": "mark the dentist appointment as done", "expectedIntent": "COMPLETE" },
+  { "text": "mark the expense report as done", "expectedIntent": "COMPLETE" },
   { "text": "done with", "expectedIntent": "UNKNOWN" },
   { "text": "push the dentist to friday at 4", "expectedIntent": "RESCHEDULE" },
   { "text": "move standup to 10", "expectedIntent": "RESCHEDULE" },

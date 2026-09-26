@@ -36,7 +36,7 @@ export const noteRow = {
 };
 
 // The same rows as API contracts.
-const stamps = { completedAt: null, createdAt: STAMP, updatedAt: STAMP };
+const stamps = { createdAt: STAMP, updatedAt: STAMP };
 export const savedTask = {
   kind: 'task',
   id: TASK_ID,
@@ -44,6 +44,7 @@ export const savedTask = {
   due: { date: '2026-09-25', time: '15:00' },
   timeZone: 'America/New_York',
   priority: 'normal',
+  completedAt: null,
   ...stamps,
 };
 export const savedEvent = {

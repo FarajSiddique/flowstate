@@ -18,7 +18,9 @@ API; the mobile app never queries the database.
    to 409.
 3. The home timeline pages through `GET /api/timeline` (`timeline_page`, keyset on
    `sort_at desc, id desc`, opaque cursor). Undated items sort by creation time.
-4. `PATCH /api/items/:kind/:id` edits fields and/or sets `completed`.
+4. `PATCH /api/items/:kind/:id` edits fields and, for a task, sets `completed`. A
+   completed task drops out of `timeline_items` (so the timeline and search) at
+   once; events and notes have no `completed` field.
 5. A confirmed SEARCH draft calls `GET /api/search` (`ilike` over `timeline_items`).
    `%`, `_` and `\` match literally. `*` still acts as a wildcard: PostgREST rewrites
    every `*` in a like pattern to `%`, and escaping it does not help.
@@ -67,6 +69,10 @@ deleted. There is no per-row purge yet; add one if the log needs a retention win
 Every timeline page reads and sorts the user's whole `timeline_items` union before
 taking its slice (search scans it too). That is fine at prototype scale; revisit it when users have thousands of
 items.
+
+A completed task is kept for 30 days, so Undo and completion metrics still work, then
+a daily `pg_cron` job (`purge-completed-tasks`, 04:15 UTC) deletes it. Events and
+notes carry a `completed_at is null` check and can never be completed.
 
 ## Dates
 

@@ -60,7 +60,7 @@ const questions = {
       SEARCH:
         'Find existing information: find my architecture notes; search for project proposal; where is my workout plan.',
       COMPLETE:
-        'Mark an existing to-do, event or note as finished: done with the report; finished call mom; mark the dentist appointment as done.',
+        'Mark an existing to-do as finished: done with the report; finished call mom; mark the grocery run as done.',
       RESCHEDULE:
         'Move an existing to-do or event to a new date or time: push the dentist to Friday at 4; move standup to 10; reschedule call mom to tomorrow.',
       APPEND:

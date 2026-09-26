@@ -98,9 +98,16 @@ test('patches accept only their own kind of fields and must change something', (
   assert.equal(taskPatchSchema.safeParse({ completed: true }).success, true);
   assert.equal(taskPatchSchema.safeParse({}).success, false);
   assert.equal(taskPatchSchema.safeParse({ durationMin: 30 }).success, false);
+  assert.equal(eventPatchSchema.safeParse({ start: null, attendees: ['Ana'] }).success, true);
   assert.equal(
-    eventPatchSchema.safeParse({ start: null, attendees: ['Ana'], completed: false }).success,
-    true,
+    eventPatchSchema.safeParse({ completed: true }).success,
+    false,
+    'only tasks complete',
+  );
+  assert.equal(
+    notePatchSchema.safeParse({ completed: true }).success,
+    false,
+    'only tasks complete',
   );
   assert.equal(notePatchSchema.safeParse({ title: '' }).success, false);
 });

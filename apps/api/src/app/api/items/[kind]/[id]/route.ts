@@ -15,7 +15,7 @@ export function OPTIONS(): Response {
   return preflight(headers);
 }
 
-// Edits a saved task, event or note, and/or marks it complete.
+// Edits a saved task, event or note. Tasks can also be marked complete (or not).
 export async function PATCH(request: Request, { params }: ItemRouteContext): Promise<Response> {
   const user = await verifyRequest(request, headers);
 

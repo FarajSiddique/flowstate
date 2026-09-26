@@ -128,11 +128,11 @@ test("a change phrase is matched against the signed-in user's open items", async
   });
 
   const calls = upstream.mock.calls.map((_call, index) => upstreamCall(upstream, index));
-  assert.deepEqual(calls.map((call) => call.url.pathname).sort(), [
-    '/rest/v1/events',
-    '/rest/v1/notes',
-    '/rest/v1/tasks',
-  ]);
+  assert.deepEqual(
+    calls.map((call) => call.url.pathname),
+    ['/rest/v1/tasks'],
+    'only tasks can be completed',
+  );
   const tasks = calls.find((call) => call.url.pathname === '/rest/v1/tasks');
   assert.equal(tasks.headers.get('authorization'), `Bearer ${token}`);
   assert.equal(tasks.url.searchParams.get('completed_at'), 'is.null');
